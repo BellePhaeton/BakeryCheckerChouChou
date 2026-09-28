@@ -1,21 +1,40 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="ru" data-theme="auto">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
 <meta name="theme-color" content="#2563eb">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>Сборка заказа</title>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
 :root{
-  --bg:#f3f4f6; --card:#fff; --text:#111827; --dim:#6b7280; --soft:#9ca3af;
+  --bg:#f3f4f6; --card:#fff; --card-2:#f9fafb; --text:#111827; --dim:#6b7280; --soft:#9ca3af;
   --border:#e5e7eb; --border-soft:#f3f4f6;
-  --primary:#2563eb; --primary-soft:#eff6ff;
-  --success:#16a34a; --success-soft:#f0fdf4;
+  --primary:#2563eb; --primary-soft:#eff6ff; --primary-border:#c7d9fb;
+  --success:#16a34a; --success-soft:#f0fdf4; --success-border:#bbf7d0;
   --warn:#f59e0b; --danger:#dc2626;
   --radius:14px;
   --shadow:0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+  --shadow-lg:0 10px 30px rgba(0,0,0,.12);
+}
+[data-theme="dark"]{
+  --bg:#0f172a; --card:#1e293b; --card-2:#0f172a; --text:#e2e8f0; --dim:#94a3b8; --soft:#64748b;
+  --border:#334155; --border-soft:#1e293b;
+  --primary:#60a5fa; --primary-soft:#1e3a5f; --primary-border:#2563eb;
+  --success:#22c55e; --success-soft:#14321e; --success-border:#166534;
+  --shadow:0 1px 3px rgba(0,0,0,.4);
+  --shadow-lg:0 10px 30px rgba(0,0,0,.5);
+}
+@media (prefers-color-scheme: dark){
+  [data-theme="auto"]{
+    --bg:#0f172a; --card:#1e293b; --card-2:#0f172a; --text:#e2e8f0; --dim:#94a3b8; --soft:#64748b;
+    --border:#334155; --border-soft:#1e293b;
+    --primary:#60a5fa; --primary-soft:#1e3a5f; --primary-border:#2563eb;
+    --success:#22c55e; --success-soft:#14321e; --success-border:#166534;
+    --shadow:0 1px 3px rgba(0,0,0,.4);
+    --shadow-lg:0 10px 30px rgba(0,0,0,.5);
+  }
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;padding:0;min-height:100%}
@@ -23,19 +42,21 @@ body{
   font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;
   background:var(--bg); color:var(--text); font-size:15px; line-height:1.45;
   -webkit-font-smoothing:antialiased;
+  padding:env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left);
+  overscroll-behavior-y:contain;
 }
-button{font-family:inherit;font-size:inherit;cursor:pointer;border:none;background:none;color:inherit}
-input{font-family:inherit;font-size:inherit}
-#app{max-width:820px;margin:0 auto;padding:16px 14px 80px}
+button{font-family:inherit;font-size:inherit;cursor:pointer;border:none;background:none;color:inherit;
+  touch-action:manipulation}
+input,select{font-family:inherit;font-size:inherit;color:inherit}
+#app{max-width:820px;margin:0 auto;padding:0 14px 100px;position:relative}
 
-/* ---------- Upload ---------- */
+/* ============ Upload ============ */
 .upload-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:90vh;text-align:center;padding:20px 0}
-.upload-hero{margin-bottom:24px}
 .upload-hero .logo{font-size:56px;line-height:1;margin-bottom:12px}
 .upload-hero h1{margin:0 0 8px;font-size:26px;font-weight:700}
 .upload-hero p{margin:0;color:var(--dim);max-width:420px}
 .dropzone{
-  width:100%;max-width:480px;padding:32px 20px;border:2px dashed var(--border);
+  width:100%;max-width:480px;margin-top:24px;padding:32px 20px;border:2px dashed var(--border);
   border-radius:var(--radius);background:var(--card);transition:.15s;
   display:flex;flex-direction:column;align-items:center;gap:10px;
 }
@@ -43,274 +64,751 @@ input{font-family:inherit;font-size:inherit}
 .dz-icon{font-size:36px;opacity:.8}
 .dz-title{font-weight:600}
 .dz-sub{color:var(--soft);font-size:13px}
-.btn{padding:11px 22px;border-radius:10px;font-weight:600;transition:.15s;display:inline-flex;align-items:center;gap:8px;min-height:44px}
+.btn{padding:12px 22px;border-radius:10px;font-weight:600;transition:.15s;display:inline-flex;
+  align-items:center;justify-content:center;gap:8px;min-height:46px}
 .btn.primary{background:var(--primary);color:#fff}
 .btn.primary:hover{background:#1d4ed8}
+.btn.ghost{background:var(--border-soft);color:var(--text)}
+.btn.danger{background:#fee2e2;color:var(--danger)}
+[data-theme="dark"] .btn.danger{background:#3f1d1d;color:#fca5a5}
 .hint{margin-top:16px;color:var(--soft);font-size:13px}
 .error{margin-top:16px;padding:12px 16px;background:#fef2f2;border:1px solid #fecaca;color:var(--danger);border-radius:10px;max-width:480px;text-align:left;font-size:14px}
 
-/* ---------- Header ---------- */
-.header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px}
-.header h1{margin:0;font-size:20px;font-weight:700}
-.subtitle{color:var(--dim);font-size:13px;margin-top:2px}
-.header-right{display:flex;gap:6px;flex-shrink:0}
-.icon-btn{width:40px;height:40px;border-radius:10px;background:var(--card);border:1px solid var(--border);
+/* ============ Sticky top ============ */
+.sticky-wrap{position:sticky;top:0;z-index:20;background:var(--bg);margin:0 -14px;padding:8px 14px 0;
+  padding-top:calc(8px + env(safe-area-inset-top));transition:box-shadow .2s}
+.sticky-wrap.scrolled{box-shadow:0 4px 16px rgba(0,0,0,.06)}
+[data-theme="dark"] .sticky-wrap.scrolled{box-shadow:0 4px 16px rgba(0,0,0,.5)}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
+.topbar h1{margin:0;font-size:17px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.topbar-actions{display:flex;gap:6px;flex-shrink:0}
+.icon-btn{width:42px;height:42px;border-radius:11px;background:var(--card);border:1px solid var(--border);
   font-size:18px;display:flex;align-items:center;justify-content:center;transition:.15s;color:var(--dim)}
-.icon-btn:hover{background:var(--primary-soft);color:var(--primary);border-color:#c7d9fb}
+.icon-btn:hover,.icon-btn:active{background:var(--primary-soft);color:var(--primary);border-color:var(--primary-border)}
 
-/* ---------- Overall card ---------- */
-.overall-card{background:var(--card);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow);margin-bottom:14px}
-.overall-row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
-.overall-label{font-size:13px;color:var(--dim);font-weight:500;text-transform:uppercase;letter-spacing:.03em}
-.overall-pct{font-size:22px;font-weight:700;color:var(--primary)}
-.overall-meta{margin-top:8px;font-size:13px;color:var(--dim)}
-.bar{height:8px;background:var(--border-soft);border-radius:99px;overflow:hidden;position:relative}
-.bar.big{height:10px}
-.bar-fill{height:100%;background:linear-gradient(90deg,#3b82f6,#2563eb);border-radius:99px;
-  transition:width .3s ease;width:0}
-.point-card.done .bar-fill,.bar-fill.full{background:linear-gradient(90deg,#22c55e,#16a34a)}
+/* Compact sticky progress */
+.progress-strip{display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--card);
+  border-radius:12px;box-shadow:var(--shadow);margin-bottom:10px;transition:.2s}
+.progress-strip .bar{flex:1;height:7px;background:var(--border-soft);border-radius:99px;overflow:hidden}
+.progress-strip .bar-fill{height:100%;background:linear-gradient(90deg,#3b82f6,#2563eb);border-radius:99px;
+  transition:width .35s ease;width:0}
+.progress-strip .bar-fill.full{background:linear-gradient(90deg,#22c55e,#16a34a)}
+.progress-strip .pct{font-weight:700;font-size:15px;color:var(--primary);min-width:44px;text-align:right;font-variant-numeric:tabular-nums}
+.progress-strip .pct.full{color:var(--success)}
+.progress-strip .cnt{font-size:12.5px;color:var(--dim);font-variant-numeric:tabular-nums;white-space:nowrap}
+.progress-strip .lbl{font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.04em;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px}
 
-/* ---------- Tabs ---------- */
-.tabs{display:flex;gap:4px;background:var(--card);border-radius:var(--radius);padding:4px;
+/* ============ Tabs ============ */
+.tabs{display:flex;gap:4px;background:var(--card);border-radius:12px;padding:4px;
   box-shadow:var(--shadow);margin-bottom:12px}
-.tab{flex:1;padding:9px 12px;border-radius:10px;font-weight:600;color:var(--dim);transition:.15s;min-height:40px}
+.tab{flex:1;padding:9px 12px;border-radius:9px;font-weight:600;color:var(--dim);transition:.15s;min-height:40px}
 .tab.active{background:var(--primary);color:#fff}
-.tab:not(.active):hover{background:var(--border-soft)}
 
-/* ---------- Filters ---------- */
-.filters{display:flex;gap:8px;margin-bottom:12px;align-items:center;flex-wrap:wrap}
+/* ============ Filters ============ */
+.filters{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
 .chk{display:inline-flex;align-items:center;gap:8px;padding:9px 12px;background:var(--card);
-  border-radius:10px;box-shadow:var(--shadow);font-size:14px;font-weight:500;cursor:pointer;user-select:none}
+  border-radius:10px;box-shadow:var(--shadow);font-size:13.5px;font-weight:500;cursor:pointer;
+  user-select:none;min-height:42px}
 .chk input{width:16px;height:16px;accent-color:var(--primary);margin:0}
-#search{flex:1;min-width:160px;padding:10px 14px;border-radius:10px;border:1px solid var(--border);
+#search,#point-search{flex:1 1 180px;min-width:0;padding:10px 14px;border-radius:10px;border:1px solid var(--border);
   background:var(--card);outline:none;transition:.15s;min-height:42px}
-#search:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
+#search:focus,#point-search:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
+#point-search{border-color:var(--primary-border);background:var(--primary-soft)}
+#point-search:focus{background:var(--card)}
+#sort-select{padding:10px 30px 10px 14px;border-radius:10px;border:1px solid var(--border);
+  background:var(--card);outline:none;min-height:42px;appearance:none;font-size:13.5px;
+  background-image:url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8' width='12' height='8'%3E%3Cpath fill='%236b7280' d='M6 8L0 0h12z'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 10px center;cursor:pointer}
 
-/* ---------- Point cards ---------- */
+/* ============ Current point banner ============ */
+.current-banner{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--primary-soft);
+  border:1px solid var(--primary-border);border-radius:12px;margin-bottom:12px;font-size:13.5px;
+  cursor:pointer;transition:.15s;animation:slideIn .3s ease}
+.current-banner:hover{background:var(--primary-soft);filter:brightness(1.03)}
+.current-banner .ic{font-size:18px}
+.current-banner .txt{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.current-banner .txt b{font-weight:600}
+.current-banner .arrow{color:var(--primary);font-weight:700;flex-shrink:0}
+@keyframes slideIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+
+/* ============ Point cards ============ */
 .point-card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);
-  margin-bottom:10px;overflow:hidden;transition:.2s;border:1px solid transparent}
-.point-card.done{border-color:#bbf7d0}
-.point-head{padding:14px 16px;cursor:pointer;user-select:none;transition:.15s}
-.point-head:active{background:var(--border-soft)}
+  margin-bottom:10px;overflow:hidden;border:1px solid transparent;transition:.25s}
+.point-card.done{border-color:var(--success-border);opacity:.82}
+.point-card.just-done{animation:pulse .7s ease}
+@keyframes pulse{
+  0%{transform:scale(1);box-shadow:var(--shadow)}
+  35%{transform:scale(1.025);box-shadow:0 8px 28px rgba(34,197,94,.35)}
+  100%{transform:scale(1);box-shadow:var(--shadow)}
+}
+.point-head{padding:14px 16px;cursor:pointer;user-select:none;transition:.15s;display:flex;gap:12px;align-items:flex-start}
+.point-head:active{background:var(--card-2)}
+.point-body-main{flex:1;min-width:0}
 .point-title{font-weight:600;font-size:15px;margin-bottom:8px;line-height:1.35;
   display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.point-progress{display:flex;align-items:center;gap:10px}
-.point-progress .bar{flex:1}
-.pct{font-size:13px;font-weight:600;color:var(--primary);min-width:38px;text-align:right}
+.point-title .badge{display:inline-block;font-size:11px;font-weight:700;color:var(--success);
+  background:var(--success-soft);padding:2px 6px;border-radius:5px;margin-left:6px;vertical-align:middle}
+.point-progress{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.point-progress .bar{flex:1;height:8px;background:var(--border-soft);border-radius:99px;overflow:hidden}
+.point-progress .bar-fill{height:100%;background:linear-gradient(90deg,#3b82f6,#2563eb);
+  border-radius:99px;transition:width .3s ease;width:0}
+.point-card.done .bar-fill{background:linear-gradient(90deg,#22c55e,#16a34a)}
+.point-progress .pct{font-size:13px;font-weight:600;color:var(--primary);min-width:38px;text-align:right;
+  font-variant-numeric:tabular-nums}
 .point-card.done .pct{color:var(--success)}
-.point-meta{margin-top:6px;font-size:12.5px;color:var(--dim)}
+.point-meta{font-size:12.5px;color:var(--dim);font-variant-numeric:tabular-nums}
 .point-card.done .point-meta{color:var(--success)}
-.point-body{border-top:1px solid var(--border-soft)}
-.item{padding:12px 16px;border-bottom:1px solid var(--border-soft);display:flex;
-  flex-direction:column;gap:8px;transition:.15s}
+.point-actions{display:flex;gap:6px;flex-shrink:0}
+.mini-btn{width:36px;height:36px;border-radius:9px;background:var(--border-soft);font-size:16px;
+  display:flex;align-items:center;justify-content:center;transition:.15s;color:var(--dim);flex-shrink:0}
+.mini-btn:hover{background:var(--primary-soft);color:var(--primary)}
+
+/* ============ Focus mode ============ */
+.focus-head{display:flex;align-items:flex-start;gap:12px;padding:14px 16px;background:var(--card);
+  border-radius:var(--radius);box-shadow:var(--shadow);margin-bottom:12px}
+.focus-head .back{width:42px;height:42px;border-radius:11px;background:var(--border-soft);
+  display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;transition:.15s}
+.focus-head .back:hover{background:var(--primary-soft);color:var(--primary)}
+.focus-head .title-area{flex:1;min-width:0}
+.focus-head h2{margin:0 0 8px;font-size:16px;font-weight:700;line-height:1.3}
+.focus-progress{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.focus-progress .bar{flex:1;height:9px;background:var(--border-soft);border-radius:99px;overflow:hidden}
+.focus-progress .bar-fill{height:100%;background:linear-gradient(90deg,#3b82f6,#2563eb);
+  border-radius:99px;transition:width .3s;width:0}
+.focus-progress .pct{font-weight:700;color:var(--primary);min-width:44px;text-align:right;font-variant-numeric:tabular-nums}
+.focus-meta{font-size:12.5px;color:var(--dim);font-variant-numeric:tabular-nums}
+
+.focus-controls{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.focus-controls .btn{flex:1 1 auto;min-width:0;font-size:13.5px;padding:10px 14px;min-height:44px}
+
+.focus-nav{display:flex;gap:8px;margin-top:16px;margin-bottom:16px}
+.focus-nav .btn{flex:1;font-size:14px}
+
+/* ============ Category group ============ */
+.cat-group{margin-bottom:10px;background:var(--card);border-radius:var(--radius);
+  box-shadow:var(--shadow);overflow:hidden}
+.cat-head{display:flex;align-items:center;gap:10px;padding:12px 16px;cursor:pointer;user-select:none;
+  transition:.15s;background:var(--card-2)}
+.cat-head:active{background:var(--border-soft)}
+.cat-head .ic{color:var(--dim);transition:.2s;font-size:11px;width:12px;text-align:center}
+.cat-group.open .cat-head .ic{transform:rotate(90deg)}
+.cat-head .name{flex:1;font-weight:600;font-size:13.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--dim)}
+.cat-head .count{font-size:12.5px;color:var(--soft);font-variant-numeric:tabular-nums}
+
+/* ============ Items ============ */
+.item{padding:12px 16px;border-bottom:1px solid var(--border-soft);display:flex;flex-direction:column;gap:10px;
+  transition:background .2s;position:relative;touch-action:pan-y}
 .item:last-child{border-bottom:none}
 .item.done{background:var(--success-soft)}
-.item-name{font-size:14.5px;line-height:1.35}
+.item.just-done{animation:itemPulse .6s ease}
+@keyframes itemPulse{
+  0%{background:var(--success-soft)}
+  50%{background:var(--success-border)}
+  100%{background:var(--success-soft)}
+}
+.item-name-row{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+.item-name{font-size:14.5px;line-height:1.35;flex:1;min-width:0}
+.item-weight{font-size:12px;color:var(--soft);white-space:nowrap;flex-shrink:0;font-variant-numeric:tabular-nums}
 .item.done .item-name{color:var(--success);text-decoration:line-through;text-decoration-thickness:1px}
 .item-controls{display:flex;align-items:center;gap:8px}
-.ctrl{width:38px;height:38px;border-radius:9px;background:var(--border-soft);font-size:20px;
-  font-weight:600;display:flex;align-items:center;justify-content:center;transition:.15s;color:var(--text)}
-.ctrl:hover:not(:disabled){background:#dbeafe;color:var(--primary)}
-.ctrl:disabled{opacity:.35;cursor:not-allowed}
-.cnt{width:56px;height:38px;border-radius:9px;border:1px solid var(--border);text-align:center;
-  font-weight:700;font-size:16px;outline:none;background:#fff;padding:0 4px}
-.cnt:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
-.item.done .cnt{border-color:#86efac;background:#fff}
-.of{color:var(--dim);font-weight:600;font-size:14px;min-width:44px}
-.check{width:38px;height:38px;border-radius:9px;border:2px solid var(--border);
-  display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;
-  color:#fff;transition:.15s;margin-left:auto;background:#fff}
+.ctrl{width:48px;height:48px;border-radius:11px;background:var(--border-soft);font-size:22px;
+  font-weight:600;display:flex;align-items:center;justify-content:center;transition:.12s;
+  color:var(--text);user-select:none;flex-shrink:0}
+.ctrl:hover:not(.muted){background:var(--primary-soft);color:var(--primary)}
+.ctrl:active:not(.muted){transform:scale(.94)}
+.ctrl.muted{opacity:.3;cursor:not-allowed}
+.ctrl.holding{background:var(--primary);color:#fff}
+.counter{min-width:78px;height:48px;border-radius:11px;border:1.5px solid var(--border);
+  display:flex;align-items:center;justify-content:center;font-weight:700;font-size:17px;
+  cursor:pointer;user-select:none;background:var(--card);transition:.15s;
+  font-variant-numeric:tabular-nums;padding:0 10px;gap:4px}
+.counter:hover{border-color:var(--primary);background:var(--primary-soft)}
+.item.done .counter{border-color:var(--success-border);background:var(--card);color:var(--success)}
+.counter .of{font-size:13px;font-weight:500;color:var(--dim)}
+.item.done .counter .of{color:var(--success)}
+.check{width:48px;height:48px;border-radius:11px;border:2px solid var(--border);
+  display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;
+  color:#fff;transition:.15s;background:var(--card);flex-shrink:0;margin-left:auto}
 .check:hover{border-color:var(--primary)}
 .check.checked{background:var(--success);border-color:var(--success)}
-.empty-row{padding:18px 16px;color:var(--soft);text-align:center;font-size:14px}
 
-/* ---------- Summary table ---------- */
-.summary-wrap{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);overflow:auto}
+/* ============ Summary table ============ */
+.summary-wrap{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);overflow:auto;
+  -webkit-overflow-scrolling:touch}
 .summary{border-collapse:collapse;font-size:13px;width:100%}
-.summary th,.summary td{padding:9px 10px;border-bottom:1px solid var(--border-soft);text-align:center;white-space:nowrap}
-.summary thead th{background:#f9fafb;font-weight:600;color:var(--dim);position:sticky;top:0;z-index:2;
-  font-size:12px;text-transform:uppercase;letter-spacing:.02em}
-.summary .sticky-col{position:sticky;left:0;background:#fff;text-align:left;font-weight:500;
-  max-width:220px;white-space:normal;z-index:1;box-shadow:1px 0 0 var(--border-soft)}
-.summary thead .sticky-col{background:#f9fafb;z-index:3}
+.summary th,.summary td{padding:10px 10px;border-bottom:1px solid var(--border-soft);text-align:center;
+  white-space:nowrap;font-variant-numeric:tabular-nums}
+.summary thead th{background:var(--card-2);font-weight:600;color:var(--dim);position:sticky;top:0;z-index:2;
+  font-size:11.5px;text-transform:uppercase;letter-spacing:.03em}
+.summary .sticky-col{position:sticky;left:0;background:var(--card);text-align:left;font-weight:500;
+  max-width:240px;white-space:normal;z-index:1;box-shadow:1px 0 0 var(--border-soft)}
+.summary thead .sticky-col{background:var(--card-2);z-index:3}
 .summary td.cell{font-weight:600;color:var(--dim)}
 .summary td.cell.partial{color:var(--primary);background:var(--primary-soft)}
 .summary td.cell.done{color:var(--success);background:var(--success-soft)}
-.summary td.empty{color:#d1d5db;font-weight:400}
-.summary td.total-col{font-weight:700;background:#f9fafb;color:var(--text)}
+.summary td.empty{color:var(--soft);font-weight:400}
+.summary td.total-col{font-weight:700;background:var(--card-2);color:var(--text)}
 .summary td.total-col.done{color:var(--success);background:var(--success-soft)}
 .summary td.total-col.partial{color:var(--primary);background:var(--primary-soft)}
-.summary tbody tr:hover td{filter:brightness(0.98)}
+.summary tfoot td{background:var(--card-2);font-weight:700;position:sticky;bottom:0;
+  box-shadow:0 -1px 0 var(--border-soft);padding:11px 10px}
+.summary tfoot .sticky-col{background:var(--card-2);z-index:1;text-align:left}
+.summary tfoot td.done{color:var(--success);background:var(--success-soft)}
+.summary tfoot td.partial{color:var(--primary);background:var(--primary-soft)}
 
-/* ---------- Celebration ---------- */
-.celebrate{position:fixed;bottom:16px;left:16px;right:16px;max-width:780px;margin:0 auto;
-  background:linear-gradient(135deg,#16a34a,#22c55e);color:#fff;padding:14px 20px;
-  border-radius:var(--radius);box-shadow:0 8px 24px rgba(22,163,74,.35);
-  display:flex;align-items:center;gap:12px;font-weight:600;animation:slideUp .4s ease}
-@keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
-.celebrate .big{font-size:24px}
+/* ============ Empty ============ */
+.empty-block{background:var(--card);border-radius:var(--radius);padding:40px 20px;text-align:center;
+  color:var(--soft);font-size:14px;box-shadow:var(--shadow)}
+
+/* ============ Toast ============ */
+.toast-stack{position:fixed;bottom:16px;left:16px;right:16px;max-width:600px;margin:0 auto;
+  z-index:100;display:flex;flex-direction:column;gap:8px;pointer-events:none;
+  padding-bottom:env(safe-area-inset-bottom)}
+.toast{background:#111827;color:#fff;border-radius:12px;padding:12px 16px;font-size:14px;
+  display:flex;align-items:center;gap:12px;box-shadow:var(--shadow-lg);
+  pointer-events:auto;animation:toastIn .25s ease;font-weight:500}
+[data-theme="dark"] .toast{background:#334155}
+.toast.success{background:linear-gradient(135deg,#16a34a,#22c55e)}
+.toast .act{font-weight:700;color:#60a5fa;padding:4px 8px;border-radius:6px;
+  text-transform:uppercase;font-size:13px;letter-spacing:.03em;flex-shrink:0}
+.toast.success .act{color:#fff;background:rgba(255,255,255,.15)}
+@keyframes toastIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.toast.out{animation:toastOut .25s ease forwards}
+@keyframes toastOut{to{opacity:0;transform:translateY(12px)}}
+
+/* ============ Saved indicator ============ */
+.saved-ind{position:fixed;top:calc(8px + env(safe-area-inset-top));right:14px;z-index:30;
+  padding:5px 10px;border-radius:99px;background:var(--success-soft);color:var(--success);
+  font-size:11.5px;font-weight:700;opacity:0;transition:opacity .3s;pointer-events:none;
+  text-transform:uppercase;letter-spacing:.04em}
+.saved-ind.show{opacity:1}
+
+/* ============ Modal overlay ============ */
+.overlay{position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:200;
+  display:flex;align-items:flex-end;justify-content:center;animation:fadeIn .2s ease;padding:0}
+@media (min-width:640px){.overlay{align-items:center}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.sheet{background:var(--card);border-radius:20px 20px 0 0;width:100%;max-width:520px;
+  padding:8px 0 calc(16px + env(safe-area-inset-bottom));animation:sheetUp .28s cubic-bezier(.2,.9,.3,1.1);
+  max-height:90vh;overflow-y:auto;position:relative}
+@media (min-width:640px){.sheet{border-radius:20px;margin-bottom:16px}}
+@keyframes sheetUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.sheet-handle{width:38px;height:4px;background:var(--border);border-radius:99px;margin:6px auto 12px}
+.sheet-title{padding:0 20px 12px;font-size:16px;font-weight:700}
+.sheet-sub{padding:0 20px 16px;font-size:13px;color:var(--dim);margin-top:-8px}
+.sheet-item{display:flex;align-items:center;gap:14px;padding:14px 20px;font-size:15px;
+  cursor:pointer;transition:.15s;font-weight:500;text-align:left;width:100%}
+.sheet-item:hover{background:var(--border-soft)}
+.sheet-item .ic{font-size:20px;width:24px;text-align:center;flex-shrink:0}
+.sheet-item .sub{margin-left:auto;color:var(--dim);font-size:13px;font-weight:400}
+.sheet-item.danger{color:var(--danger)}
+.sheet-divider{height:1px;background:var(--border-soft);margin:6px 0}
+
+/* ============ Numpad ============ */
+.numpad-value{text-align:center;font-size:48px;font-weight:700;padding:12px 0 20px;
+  color:var(--primary);font-variant-numeric:tabular-nums}
+.numpad-value .of{font-size:22px;color:var(--dim);font-weight:500;margin-left:6px}
+.numpad-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:0 20px}
+.numpad-btn{height:60px;border-radius:14px;background:var(--card-2);font-size:24px;font-weight:600;
+  display:flex;align-items:center;justify-content:center;transition:.1s;color:var(--text)}
+.numpad-btn:hover{background:var(--primary-soft);color:var(--primary)}
+.numpad-btn:active{transform:scale(.96)}
+.numpad-btn.confirm{background:var(--primary);color:#fff;font-size:16px}
+.numpad-btn.cancel{background:var(--border-soft);color:var(--dim);font-size:15px}
+.numpad-presets{display:flex;gap:6px;padding:14px 20px 0;flex-wrap:wrap;justify-content:center}
+.preset{padding:8px 14px;border-radius:99px;background:var(--border-soft);font-size:13px;font-weight:600;
+  color:var(--dim);transition:.15s}
+.preset:hover{background:var(--primary-soft);color:var(--primary)}
+
+/* ============ Settings ============ */
+.set-row{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;font-size:15px}
+.set-row .lbl{font-weight:500}
+.set-row .desc{font-size:12.5px;color:var(--dim);margin-top:2px}
+.switch{position:relative;width:50px;height:30px;background:var(--border);border-radius:99px;
+  transition:.2s;flex-shrink:0;cursor:pointer;border:none}
+.switch.on{background:var(--primary)}
+.switch::after{content:'';position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;
+  background:#fff;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.switch.on::after{left:23px}
+.theme-pills{display:flex;gap:4px;padding:0 20px 14px}
+.theme-pill{flex:1;padding:10px;border-radius:10px;background:var(--border-soft);font-size:13px;
+  font-weight:600;color:var(--dim);transition:.15s;text-align:center;min-height:44px}
+.theme-pill.active{background:var(--primary);color:#fff}
 </style>
 </head>
 <body>
 <div id="app"></div>
+<div class="toast-stack" id="toast-stack"></div>
+<div class="saved-ind" id="saved-ind">✓ Сохранено</div>
+
 <script>
 (function(){
 'use strict';
 
-/* ========== Утилиты ========== */
+/* ==================================================================
+   УТИЛИТЫ
+   ================================================================== */
 const $ = (s,r=document)=>r.querySelector(s);
 const $$ = (s,r=document)=>Array.from(r.querySelectorAll(s));
 const esc = s => String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
-/* ========== Состояние ========== */
-const STORAGE_KEY='orderTracker.v1';
-const state={order:null,picked:{},view:'points',filterUnsorted:true,search:'',collapsed:{},error:null};
+const STORAGE_KEY = 'orderTracker.v2';
 
-const keyOf=(pi,xi)=>pi+':'+xi;
-const getPicked=(pi,xi)=>state.picked[keyOf(pi,xi)]||0;
+/* ==================================================================
+   СОСТОЯНИЕ
+   ================================================================== */
+const defaultState = () => ({
+  order:null,
+  picked:{},
+  view:'points',
+  focusPoint:null,
+  filterUnsorted:true,
+  filterInProgress:false,
+  search:'',
+  pointSearch:'',
+  sortMode:'progress',
+  collapsed:{},
+  collapsedCats:{},
+  theme:'auto',
+  sound:true,
+  haptic:true,
+  currentPoint:null,
+  error:null,
+  pointsDone:{} // вычисляемое
+});
 
-/* ========== Сохранение ========== */
-function serialize(o){return{points:o.points,products:o.products,
-  orderDate:o.orderDate?o.orderDate.toISOString():null,sheetName:o.sheetName,filename:o.filename};}
-function deserialize(o){return{...o,orderDate:o.orderDate?new Date(o.orderDate):null};}
+const state = defaultState();
+
+const keyOf = (pi,xi)=>pi+':'+xi;
+const getPicked = (pi,xi)=>state.picked[keyOf(pi,xi)]||0;
+
+/* ==================================================================
+   СОХРАНЕНИЕ
+   ================================================================== */
+function serializeOrder(o){
+  return {
+    points:o.points, products:o.products,
+    orderDate:o.orderDate?o.orderDate.toISOString():null,
+    sheetName:o.sheetName, filename:o.filename
+  };
+}
+function deserializeOrder(o){
+  return {...o, orderDate:o.orderDate?new Date(o.orderDate):null};
+}
+let saveTimer=null, savedIndTimer=null;
 function saveState(){
-  if(!state.order)return;
-  try{localStorage.setItem(STORAGE_KEY,JSON.stringify({
-    order:serialize(state.order),picked:state.picked,savedAt:Date.now()}));}catch(e){}
+  const prefs = {
+    theme:state.theme, sound:state.sound, haptic:state.haptic,
+    sortMode:state.sortMode, filterUnsorted:state.filterUnsorted,
+    filterInProgress:state.filterInProgress
+  };
+  const payload = {
+    order: state.order ? serializeOrder(state.order) : null,
+    picked: state.picked,
+    currentPoint: state.currentPoint,
+    prefs
+  };
+  if(saveTimer) clearTimeout(saveTimer);
+  saveTimer = setTimeout(()=>{
+    try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(payload)); }catch(e){}
+    saveTimer = null;
+  }, 120);
+  flashSaved();
+}
+function flashSaved(){
+  const el = $('#saved-ind');
+  if(!el) return;
+  el.classList.add('show');
+  if(savedIndTimer) clearTimeout(savedIndTimer);
+  savedIndTimer = setTimeout(()=>el.classList.remove('show'), 1200);
 }
 function loadState(){
   try{
-    const raw=localStorage.getItem(STORAGE_KEY); if(!raw)return false;
-    const d=JSON.parse(raw); if(!d||!d.order)return false;
-    state.order=deserialize(d.order); state.picked=d.picked||{}; return true;
-  }catch(e){return false;}
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(!raw) return false;
+    const d = JSON.parse(raw);
+    if(d.prefs){
+      if(d.prefs.theme) state.theme = d.prefs.theme;
+      if(typeof d.prefs.sound === 'boolean') state.sound = d.prefs.sound;
+      if(typeof d.prefs.haptic === 'boolean') state.haptic = d.prefs.haptic;
+      if(d.prefs.sortMode) state.sortMode = d.prefs.sortMode;
+      if(typeof d.prefs.filterUnsorted === 'boolean') state.filterUnsorted = d.prefs.filterUnsorted;
+      if(typeof d.prefs.filterInProgress === 'boolean') state.filterInProgress = d.prefs.filterInProgress;
+    }
+    if(d.order){
+      state.order = deserializeOrder(d.order);
+      state.picked = d.picked || {};
+      state.currentPoint = d.currentPoint ?? null;
+      recalcPointsDone();
+      return true;
+    }
+  }catch(e){}
+  return false;
 }
 
-/* ========== Парсер XLSX ========== */
+/* ==================================================================
+   ЭФФЕКТЫ: haptic, sound, animation
+   ================================================================== */
+function haptic(pattern){
+  if(!state.haptic) return;
+  if(!navigator.vibrate) return;
+  try{ navigator.vibrate(pattern); }catch(e){}
+}
+let audioCtx = null;
+function beep(freq, dur, vol){
+  if(!state.sound) return;
+  try{
+    if(!audioCtx){
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if(!AC) return;
+      audioCtx = new AC();
+    }
+    if(audioCtx.state === 'suspended') audioCtx.resume();
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.type='sine'; o.frequency.value=freq;
+    o.connect(g); g.connect(audioCtx.destination);
+    g.gain.setValueAtTime(vol||0.14, audioCtx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime+dur);
+    o.start(); o.stop(audioCtx.currentTime+dur);
+  }catch(e){}
+}
+function soundPositionDone(){
+  beep(880, 0.09, 0.12);
+}
+function soundPointDone(){
+  beep(660, 0.14, 0.14);
+  setTimeout(()=>beep(880, 0.20, 0.14), 130);
+}
+
+/* ==================================================================
+   ПАРСЕР XLSX
+   ================================================================== */
 function parseDate(v){
-  if(v==null)return null;
-  if(v instanceof Date)return v;
-  if(typeof v==='number'){const d=XLSX.SSF.parse_date_code(v);if(d)return new Date(d.y,d.m-1,d.d);}
-  const s=String(v).trim();
-  let m=s.match(/^(\d{1,2})[.\-\/](\d{1,2})[.\-\/](\d{2,4})/);
-  if(m){let y=parseInt(m[3]);if(y<100)y+=2000;return new Date(y,parseInt(m[2])-1,parseInt(m[1]));}
-  m=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
-  if(m)return new Date(parseInt(m[1]),parseInt(m[2])-1,parseInt(m[3]));
+  if(v==null) return null;
+  if(v instanceof Date) return v;
+  if(typeof v === 'number'){
+    const d = XLSX.SSF.parse_date_code(v);
+    if(d) return new Date(d.y, d.m-1, d.d);
+  }
+  const s = String(v).trim();
+  let m = s.match(/^(\d{1,2})[.\-\/](\d{1,2})[.\-\/](\d{2,4})/);
+  if(m){ let y = parseInt(m[3]); if(y<100) y+=2000; return new Date(y, parseInt(m[2])-1, parseInt(m[1])); }
+  m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if(m) return new Date(parseInt(m[1]), parseInt(m[2])-1, parseInt(m[3]));
   return null;
 }
 
-function parseOrder(buf,filename){
-  const wb=XLSX.read(buf,{type:'array',cellDates:true});
-  let sheetName=wb.SheetNames.find(n=>n==='TDSheet')||wb.SheetNames[0];
-  const ws=wb.Sheets[sheetName];
-  if(!ws)throw new Error('В файле не найден лист с данными.');
-  const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:null,blankrows:false});
+/* Разбиваем название: name / weight / category */
+function parseProductName(full){
+  let name = String(full).trim();
+  let weight = null;
+  // … , 0,3кг  |  ... , 0.3 кг  |  ..., 100 г
+  const wm = name.match(/[,\s]+([\d]+[.,]?\d*\s*(?:кг|г|гр|g|kg))\s*$/i);
+  if(wm){
+    weight = wm[1].replace(/\s+/g,' ').replace(',','.').trim();
+    name = name.slice(0, wm.index).replace(/[,\s]+$/,'').trim();
+  }
+  // Категория = первое слово
+  let category = null;
+  const cm = name.match(/^([А-Яа-яЁёA-Za-z]+)/);
+  if(cm) category = cm[1];
+  return { name, weight, category };
+}
 
-  /* Ищем шапку — строку, где есть столбец "Номенклатура" */
+function parseOrder(buf, filename){
+  const wb = XLSX.read(buf, {type:'array', cellDates:true});
+  const sheetName = wb.SheetNames.find(n=>n==='TDSheet') || wb.SheetNames[0];
+  const ws = wb.Sheets[sheetName];
+  if(!ws) throw new Error('В файле не найден лист с данными.');
+  const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:null, blankrows:false});
+
   let headerIdx=-1, productCol=-1;
-  for(let r=0;r<Math.min(rows.length,15);r++){
-    const row=rows[r]||[];
-    for(let c=0;c<row.length;c++){
-      if(row[c]&&String(row[c]).trim().toLowerCase()==='номенклатура'){headerIdx=r;productCol=c;break;}
+  for(let r=0; r<Math.min(rows.length,15); r++){
+    const row = rows[r]||[];
+    for(let c=0; c<row.length; c++){
+      if(row[c] && String(row[c]).trim().toLowerCase()==='номенклатура'){
+        headerIdx=r; productCol=c; break;
+      }
     }
-    if(headerIdx>=0)break;
+    if(headerIdx>=0) break;
   }
-  if(headerIdx<0)throw new Error('Не найден столбец «Номенклатура». Проверьте формат файла.');
+  if(headerIdx<0) throw new Error('Не найден столбец «Номенклатура». Проверьте формат файла.');
 
-  const headerRow=rows[headerIdx]||[];
-  const dateCol=productCol>0?productCol-1:0;
+  const headerRow = rows[headerIdx]||[];
+  const dateCol = productCol>0 ? productCol-1 : 0;
 
-  /* Точки — колонки после "Номенклатура", кроме "Итого" */
-  const rawPoints=[];
-  for(let c=productCol+1;c<headerRow.length;c++){
-    const v=headerRow[c];
-    if(v==null||String(v).trim()==='')continue;
-    const name=String(v).trim();
-    if(/^итого$/i.test(name))continue;
-    rawPoints.push({name,col:c});
+  const rawPoints = [];
+  for(let c=productCol+1; c<headerRow.length; c++){
+    const v = headerRow[c];
+    if(v==null || String(v).trim()==='') continue;
+    const name = String(v).trim();
+    if(/^итого$/i.test(name)) continue;
+    rawPoints.push({name, col:c});
   }
-  if(rawPoints.length===0)throw new Error('Не найдено ни одной точки доставки в шапке файла.');
+  if(rawPoints.length===0) throw new Error('Не найдено ни одной точки доставки в шапке файла.');
 
-  /* Данные */
-  const rawProducts=[];
-  let orderDate=null;
-  for(let r=headerIdx+1;r<rows.length;r++){
-    const row=rows[r]||[];
-    const first=row[dateCol];
-    const pname=row[productCol];
-    if(first&&/^итого$/i.test(String(first).trim()))break;
-    if(pname==null||String(pname).trim()==='')continue;
-    if(!orderDate)orderDate=parseDate(first);
+  const rawProducts = [];
+  let orderDate = null;
+  for(let r=headerIdx+1; r<rows.length; r++){
+    const row = rows[r]||[];
+    const first = row[dateCol];
+    const pname = row[productCol];
+    if(first && /^итого$/i.test(String(first).trim())) break;
+    if(pname==null || String(pname).trim()==='') continue;
+    if(!orderDate) orderDate = parseDate(first);
 
-    const perPoint={};let total=0;
-    for(let i=0;i<rawPoints.length;i++){
-      const v=Number(row[rawPoints[i].col]);
-      if(Number.isFinite(v)&&v>0){perPoint[i]=v;total+=v;}
+    const perPoint = {}; let total=0;
+    for(let i=0; i<rawPoints.length; i++){
+      const v = Number(row[rawPoints[i].col]);
+      if(Number.isFinite(v) && v>0){ perPoint[i]=v; total+=v; }
     }
-    if(total===0)continue;
-    rawProducts.push({name:String(pname).trim(),perPoint});
+    if(total===0) continue;
+    const parsed = parseProductName(String(pname).trim());
+    rawProducts.push({
+      fullName: String(pname).trim(),
+      name: parsed.name,
+      weight: parsed.weight,
+      category: parsed.category,
+      perPoint
+    });
   }
-  if(rawProducts.length===0)throw new Error('В файле не найдено ни одной позиции с количеством.');
+  if(rawProducts.length===0) throw new Error('В файле не найдено ни одной позиции с количеством.');
 
-  /* Выкидываем точки, куда ничего не едет */
-  const keepIdx=rawPoints.map((_,i)=>i).filter(i=>rawProducts.some(p=>p.perPoint[i]));
-  const points=keepIdx.map(i=>rawPoints[i]);
-  const remap={};keepIdx.forEach((oldI,newI)=>remap[oldI]=newI);
-  const products=rawProducts.map(p=>{
-    const np={};
-    for(const[k,v]of Object.entries(p.perPoint)){
-      const ni=remap[+k];if(ni!=null)np[ni]=v;
+  const keepIdx = rawPoints.map((_,i)=>i).filter(i=>rawProducts.some(p=>p.perPoint[i]));
+  const points = keepIdx.map(i=>rawPoints[i]);
+  const remap = {}; keepIdx.forEach((oldI,newI)=>remap[oldI]=newI);
+  const products = rawProducts.map(p=>{
+    const np = {};
+    for(const [k,v] of Object.entries(p.perPoint)){
+      const ni = remap[+k]; if(ni!=null) np[ni]=v;
     }
-    return{name:p.name,perPoint:np};
+    return {...p, perPoint:np};
   });
 
-  return{points,products,orderDate,sheetName,filename:filename||'order.xlsx'};
+  return { points, products, orderDate, sheetName, filename: filename||'order.xlsx' };
 }
 
-/* ========== Подсчёты ========== */
+/* ==================================================================
+   ПОДСЧЁТЫ
+   ================================================================== */
 function pointStats(pi){
-  const{products}=state.order;
-  let lt=0,ld=0,ut=0,ud=0;
-  for(let xi=0;xi<products.length;xi++){
-    const ord=products[xi].perPoint[pi]||0;
-    if(ord===0)continue;
-    const got=Math.min(getPicked(pi,xi),ord);
-    lt++;ut+=ord;ud+=got;
-    if(got>=ord)ld++;
+  const {products} = state.order;
+  let lt=0, ld=0, ut=0, ud=0;
+  for(let xi=0; xi<products.length; xi++){
+    const ord = products[xi].perPoint[pi]||0;
+    if(ord===0) continue;
+    const got = Math.min(getPicked(pi,xi), ord);
+    lt++; ut+=ord; ud+=got;
+    if(got>=ord) ld++;
   }
-  return{linesTotal:lt,linesDone:ld,unitsTotal:ut,unitsDone:ud};
+  return {linesTotal:lt, linesDone:ld, unitsTotal:ut, unitsDone:ud};
 }
 function overallStats(){
-  const{points}=state.order;
-  let lt=0,ld=0,ut=0,ud=0;
-  for(let pi=0;pi<points.length;pi++){
-    const s=pointStats(pi);
-    lt+=s.linesTotal;ld+=s.linesDone;ut+=s.unitsTotal;ud+=s.unitsDone;
+  const {points} = state.order;
+  let lt=0, ld=0, ut=0, ud=0;
+  for(let pi=0; pi<points.length; pi++){
+    const s = pointStats(pi);
+    lt+=s.linesTotal; ld+=s.linesDone; ut+=s.unitsTotal; ud+=s.unitsDone;
   }
-  return{linesTotal:lt,linesDone:ld,unitsTotal:ut,unitsDone:ud};
+  return {linesTotal:lt, linesDone:ld, unitsTotal:ut, unitsDone:ud};
 }
-const pct=(d,t)=>t===0?0:Math.round(d*100/t);
-function shortName(name){const m=name.match(/\(([^)]+)\)\s*$/);return m?m[1]:name;}
+function filteredStats(){
+  const pq = state.pointSearch.trim().toLowerCase();
+  if(!pq) return {...overallStats(), filtered:false};
+  const {points} = state.order;
+  let lt=0, ld=0, ut=0, ud=0;
+  for(let pi=0; pi<points.length; pi++){
+    if(!points[pi].name.toLowerCase().includes(pq)) continue;
+    const s = pointStats(pi);
+    lt+=s.linesTotal; ld+=s.linesDone; ut+=s.unitsTotal; ud+=s.unitsDone;
+  }
+  return {linesTotal:lt, linesDone:ld, unitsTotal:ut, unitsDone:ud, filtered:true};
+}
+const pct = (d,t)=>t===0?0:Math.round(d*100/t);
+function shortName(name){
+  const m = name.match(/\(([^)]+)\)\s*$/);
+  return m ? m[1] : name;
+}
 
-/* ========== Действия ========== */
-function setPicked(pi,xi,val){
-  const ord=state.order.products[xi].perPoint[pi]||0;
-  val=Math.max(0,Math.min(ord,val|0));
-  const k=keyOf(pi,xi);
-  if(val===0)delete state.picked[k];else state.picked[k]=val;
+function recalcPointsDone(){
+  if(!state.order) return;
+  const n = {};
+  for(let pi=0; pi<state.order.points.length; pi++){
+    const st = pointStats(pi);
+    if(st.linesTotal>0 && st.linesDone===st.linesTotal) n[pi]=true;
+  }
+  state.pointsDone = n;
+}
+
+/* Сортировка точек */
+function sortedPointIndices(){
+  const {points} = state.order;
+  const arr = points.map((p,i)=>({p,i}));
+  const pq = state.pointSearch.trim().toLowerCase();
+  let filtered = arr;
+  if(pq) filtered = arr.filter(({p})=>p.name.toLowerCase().includes(pq));
+
+  const mode = state.sortMode;
+  if(mode==='progress'){
+    filtered.sort((a,b)=>{
+      const sa = pointStats(a.i), sb = pointStats(b.i);
+      const da = sa.linesTotal>0 && sa.linesDone===sa.linesTotal;
+      const db = sb.linesTotal>0 && sb.linesDone===sb.linesTotal;
+      // 0 — в работе, 1 — нетронутые, 2 — завершённые
+      const ra = da?2:(sa.linesDone>0?0:1);
+      const rb = db?2:(sb.linesDone>0?0:1);
+      if(ra!==rb) return ra-rb;
+      return (sb.unitsDone/(sb.unitsTotal||1)) - (sa.unitsDone/(sa.unitsTotal||1));
+    });
+  } else if(mode==='alpha'){
+    filtered.sort((a,b)=>a.p.name.localeCompare(b.p.name,'ru'));
+  }
+  return filtered;
+}
+
+/* ==================================================================
+   ДЕЙСТВИЯ
+   ================================================================== */
+function setPicked(pi, xi, val, opts){
+  opts = opts || {};
+  const ord = state.order.products[xi].perPoint[pi]||0;
+  val = Math.max(0, Math.min(ord, val|0));
+  const k = keyOf(pi,xi);
+  const wasDone = getPicked(pi,xi) >= ord;
+  const pointWasDone = !!state.pointsDone[pi];
+  if(val===0) delete state.picked[k]; else state.picked[k] = val;
+  const isDone = val >= ord;
+
+  // Инкремент "current point"
+  state.currentPoint = pi;
+
+  // Проверка завершения позиции
+  if(!opts.silent && isDone && !wasDone){
+    haptic([10,25,10]);
+    soundPositionDone();
+  }
+
+  // Проверка завершения точки
+  const st = pointStats(pi);
+  const pointNowDone = st.linesTotal>0 && st.linesDone===st.linesTotal;
+  if(pointNowDone) state.pointsDone[pi] = true; else delete state.pointsDone[pi];
+  if(!opts.silent && pointNowDone && !pointWasDone){
+    haptic([60,40,60,40,120]);
+    soundPointDone();
+  }
+
   saveState();
-}
-function toggleDone(pi,xi){
-  const ord=state.order.products[xi].perPoint[pi]||0;
-  const cur=getPicked(pi,xi);
-  setPicked(pi,xi,cur>=ord?0:ord);
+
+  // Возвращаем инфу о том, что произошло — для локального UI
+  return { positionJustDone: isDone && !wasDone, pointJustDone: pointNowDone && !pointWasDone };
 }
 
-/* ========== Рендер ========== */
+function toggleDone(pi, xi){
+  const ord = state.order.products[xi].perPoint[pi]||0;
+  const cur = getPicked(pi,xi);
+  return setPicked(pi, xi, cur>=ord ? 0 : ord);
+}
+
+function markPointDone(pi){
+  const {products} = state.order;
+  const before = {...state.picked};
+  for(let xi=0; xi<products.length; xi++){
+    const ord = products[xi].perPoint[pi]||0;
+    if(ord>0) state.picked[keyOf(pi,xi)] = ord;
+  }
+  state.currentPoint = pi;
+  recalcPointsDone();
+  saveState();
+  return before;
+}
+
+function resetPoint(pi){
+  const {products} = state.order;
+  const before = {};
+  for(let xi=0; xi<products.length; xi++){
+    const k = keyOf(pi,xi);
+    if(state.picked[k]!=null) before[k] = state.picked[k];
+    delete state.picked[k];
+  }
+  recalcPointsDone();
+  saveState();
+  return before;
+}
+
+function resetAll(){
+  const before = {...state.picked};
+  state.picked = {};
+  state.pointsDone = {};
+  saveState();
+  return before;
+}
+
+/* ==================================================================
+   TOAST / UNDO
+   ================================================================== */
+function showToast(msg, opts){
+  opts = opts || {};
+  const stack = $('#toast-stack');
+  if(!stack) return;
+  const el = document.createElement('div');
+  el.className = 'toast' + (opts.type==='success' ? ' success' : '');
+  el.innerHTML = `<span style="flex:1">${esc(msg)}</span>`;
+  if(opts.actionLabel && opts.onAction){
+    const btn = document.createElement('button');
+    btn.className = 'act';
+    btn.textContent = opts.actionLabel;
+    btn.addEventListener('click', ()=>{
+      opts.onAction();
+      dismiss();
+    });
+    el.appendChild(btn);
+  }
+  stack.appendChild(el);
+  const dur = opts.duration || 5000;
+  const t = setTimeout(dismiss, dur);
+  function dismiss(){
+    clearTimeout(t);
+    if(!el.parentNode) return;
+    el.classList.add('out');
+    setTimeout(()=>el.remove(), 250);
+  }
+  return { dismiss };
+}
+
+/* ==================================================================
+   ТЕМА
+   ================================================================== */
+function applyTheme(){
+  let t = state.theme;
+  document.documentElement.setAttribute('data-theme', t);
+  const isDark = t==='dark' || (t==='auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if(meta) meta.setAttribute('content', isDark ? '#0f172a' : '#2563eb');
+}
+if(window.matchMedia){
+  const mq = window.matchMedia('(prefers-color-scheme: dark)');
+  const onChange = ()=>{ if(state.theme==='auto') applyTheme(); };
+  if(mq.addEventListener) mq.addEventListener('change', onChange);
+  else if(mq.addListener) mq.addListener(onChange);
+}
+
+/* ==================================================================
+   РЕНДЕР
+   ================================================================== */
 function render(){
-  const app=$('#app');
-  if(!state.order){app.innerHTML=renderUpload();bindUpload();}
-  else{app.innerHTML=renderApp();}
+  const app = $('#app');
+  if(!state.order){
+    app.innerHTML = renderUpload();
+    bindUpload();
+  } else if(state.focusPoint != null){
+    app.innerHTML = renderFocus();
+    afterRender();
+  } else {
+    app.innerHTML = renderApp();
+    afterRender();
+  }
 }
 
 function renderUpload(){
@@ -333,33 +831,43 @@ function renderUpload(){
   </div>`;
 }
 
+function renderStickyProgress(){
+  const ov = filteredStats();
+  const p = pct(ov.unitsDone, ov.unitsTotal);
+  const allDone = ov.unitsTotal>0 && ov.unitsDone===ov.unitsTotal;
+  const label = state.pointSearch.trim() ? `«${state.pointSearch.trim()}»` : '';
+  return `<div class="progress-strip">
+    <div class="bar"><div class="bar-fill ${allDone?'full':''}" style="width:${p}%"></div></div>
+    <span class="pct ${allDone?'full':''}">${p}%</span>
+    <span class="cnt">${ov.unitsDone}/${ov.unitsTotal} шт</span>
+    ${label?`<span class="lbl">${esc(label)}</span>`:''}
+  </div>`;
+}
+
+function renderTopbar(){
+  return `<div class="topbar">
+    <h1>Сборка заказа</h1>
+    <div class="topbar-actions">
+      <button class="icon-btn" data-act="settings" title="Настройки">⚙</button>
+      <button class="icon-btn" data-act="change-file" title="Другой файл">⇅</button>
+      <button class="icon-btn" data-act="reset-all" title="Сбросить всё">↺</button>
+    </div>
+  </div>`;
+}
+
 function renderApp(){
-  const{order}=state;
-  const ov=overallStats();
-  const dateStr=order.orderDate
-    ?order.orderDate.toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'})
-    :'';
-  const allDone=ov.unitsTotal>0&&ov.unitsDone===ov.unitsTotal;
+  const {order} = state;
+  const dateStr = order.orderDate
+    ? order.orderDate.toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'})
+    : '';
+
+  const current = (state.currentPoint != null && state.order.points[state.currentPoint])
+    ? state.order.points[state.currentPoint] : null;
 
   return `
-  <div class="header">
-    <div>
-      <h1>Сборка заказа</h1>
-      <div class="subtitle">${esc(dateStr)}${dateStr?' · ':''}${order.products.length} позиций · ${order.points.length} точек</div>
-    </div>
-    <div class="header-right">
-      <button class="icon-btn" id="reset-all" title="Сбросить прогресс">↺</button>
-      <button class="icon-btn" id="change-file" title="Загрузить другой файл">⇅</button>
-    </div>
-  </div>
-
-  <div class="overall-card">
-    <div class="overall-row">
-      <div class="overall-label">Общий прогресс</div>
-      <div class="overall-pct">${pct(ov.unitsDone,ov.unitsTotal)}%</div>
-    </div>
-    <div class="bar big"><div class="bar-fill ${allDone?'full':''}" style="width:${pct(ov.unitsDone,ov.unitsTotal)}%"></div></div>
-    <div class="overall-meta">${ov.linesDone}/${ov.linesTotal} позиций · ${ov.unitsDone}/${ov.unitsTotal} шт</div>
+  <div class="sticky-wrap" id="sticky-wrap">
+    ${renderTopbar()}
+    ${renderStickyProgress()}
   </div>
 
   <div class="tabs">
@@ -368,297 +876,927 @@ function renderApp(){
   </div>
 
   <div class="filters">
-    <label class="chk"><input type="checkbox" id="filter-unsorted" ${state.filterUnsorted?'checked':''}><span>Только несобранное</span></label>
-    <input type="search" id="search" placeholder="Поиск по названию…" value="${esc(state.search)}">
+    <label class="chk"><input type="checkbox" id="f-unsorted" ${state.filterUnsorted?'checked':''}><span>Несобранное</span></label>
+    <label class="chk"><input type="checkbox" id="f-inprogress" ${state.filterInProgress?'checked':''}><span>В работе</span></label>
+    <input type="search" id="point-search" placeholder="Фамилия владельца…" value="${esc(state.pointSearch)}">
+    <input type="search" id="search" placeholder="Поиск по товару…" value="${esc(state.search)}">
+    <select id="sort-select" title="Сортировка">
+      <option value="progress" ${state.sortMode==='progress'?'selected':''}>↕ По прогрессу</option>
+      <option value="file" ${state.sortMode==='file'?'selected':''}>↕ Как в файле</option>
+      <option value="alpha" ${state.sortMode==='alpha'?'selected':''}>↕ По алфавиту</option>
+    </select>
   </div>
+
+  ${current && state.view==='points' ? `
+    <div class="current-banner" data-act="go-current">
+      <span class="ic">📍</span>
+      <span class="txt">Сейчас собираем: <b>${esc(current.name)}</b></span>
+      <span class="arrow">→</span>
+    </div>`:''}
 
   <div class="content" id="content">
-    ${state.view==='points'?renderPoints():renderSummary()}
+    ${state.view==='points' ? renderPoints() : renderSummary()}
   </div>
-
-  ${allDone?`<div class="celebrate"><span class="big">✅</span><span>Заказ собран полностью — можно отправлять!</span></div>`:''}
   `;
 }
 
 function renderPoints(){
-  const{points,products}=state.order;
-  const q=state.search.trim().toLowerCase();
-  let html='';
-  let visiblePoints=0;
+  const {products} = state.order;
+  const q = state.search.trim().toLowerCase();
+  const list = sortedPointIndices();
 
-  for(let pi=0;pi<points.length;pi++){
-    const items=[];
-    for(let xi=0;xi<products.length;xi++){
-      const ord=products[xi].perPoint[pi]||0;
-      if(ord===0)continue;
-      const got=getPicked(pi,xi);
-      if(state.filterUnsorted&&got>=ord)continue;
-      if(q&&!products[xi].name.toLowerCase().includes(q))continue;
-      items.push({xi,ordered:ord,got,name:products[xi].name});
-    }
+  let html = '';
+  let visible = 0;
 
-    const st=pointStats(pi);
-    if(st.linesTotal===0)continue;
+  for(const {i:pi, p:point} of list){
+    const st = pointStats(pi);
+    if(st.linesTotal===0) continue;
 
-    /* Если фильтр включён и всё собрано — скрываем точку целиком */
-    if(state.filterUnsorted&&st.linesDone>=st.linesTotal)continue;
-    /* Если поиск не нашёл в этой точке ничего — скрываем */
-    if(q&&items.length===0)continue;
+    const isDone = st.linesTotal>0 && st.linesDone===st.linesTotal;
+    if(state.filterUnsorted && isDone) continue;
+    if(state.filterInProgress && !(st.linesDone>0 && !isDone)) continue;
 
-    visiblePoints++;
-    const isDone=st.linesDone===st.linesTotal&&st.linesTotal>0;
-    const name=points[pi].name;
-    const collapsed=state.collapsed[name];
-    const p=pct(st.unitsDone,st.unitsTotal);
-
-    html+=`<div class="point-card ${isDone?'done':''}" data-point="${pi}">
-      <div class="point-head" data-toggle="${pi}">
-        <div class="point-title">${esc(name)}</div>
-        <div class="point-progress">
-          <div class="bar"><div class="bar-fill" style="width:${p}%"></div></div>
-          <span class="pct">${p}%</span>
-        </div>
-        <div class="point-meta">${st.linesDone}/${st.linesTotal} позиций · ${st.unitsDone}/${st.unitsTotal} шт ${isDone?'✓':''}</div>
-      </div>`;
-
-    if(!collapsed){
-      html+=`<div class="point-body">`;
-      if(items.length===0){
-        html+=`<div class="empty-row">${st.linesTotal===0?'Нет позиций':'Всё собрано'}</div>`;
-      }else{
-        for(const it of items)html+=renderItem(pi,it);
+    // Считаем items, подходящие под поиск товара
+    let matchCount = 0;
+    if(q){
+      for(let xi=0; xi<products.length; xi++){
+        const ord = products[xi].perPoint[pi]||0;
+        if(ord===0) continue;
+        if(products[xi].name.toLowerCase().includes(q) || (products[xi].weight||'').toLowerCase().includes(q)){
+          matchCount++;
+        }
       }
-      html+=`</div>`;
+      if(matchCount===0) continue;
     }
-    html+=`</div>`;
+
+    visible++;
+    const p = pct(st.unitsDone, st.unitsTotal);
+    const collapsed = !!state.collapsed[point.name];
+
+    html += `<div class="point-card ${isDone?'done':''}" data-point="${pi}">
+      <div class="point-head" data-open="${pi}">
+        <div class="point-body-main">
+          <div class="point-title">${esc(point.name)}${isDone?' <span class="badge">✓</span>':''}</div>
+          <div class="point-progress">
+            <div class="bar"><div class="bar-fill" style="width:${p}%"></div></div>
+            <span class="pct">${p}%</span>
+          </div>
+          <div class="point-meta">${st.linesDone}/${st.linesTotal} позиций · ${st.unitsDone}/${st.unitsTotal} шт</div>
+        </div>
+        <div class="point-actions">
+          <button class="mini-btn" data-menu="${pi}" title="Меню точки">⋯</button>
+        </div>
+      </div>
+    </div>`;
   }
 
-  if(visiblePoints===0)html=`<div class="empty-row" style="background:#fff;border-radius:14px;padding:32px">
-    ${state.filterUnsorted?'Все позиции собраны 🎉':'Ничего не найдено'}</div>`;
+  if(visible===0){
+    let msg = 'Ничего не найдено';
+    if(state.filterUnsorted && state.filterInProgress) msg = 'Нет точек в работе';
+    else if(state.filterUnsorted) msg = 'Все позиции собраны 🎉';
+    else if(state.filterInProgress) msg = 'Нет начатых точек';
+    if(state.pointSearch.trim()) msg = 'Точка с такой фамилией не найдена';
+    html = `<div class="empty-block">${msg}</div>`;
+  }
   return html;
 }
 
-function renderItem(pi,it){
-  const done=it.got>=it.ordered;
+function renderSummary(){
+  const {points, products} = state.order;
+  const q = state.search.trim().toLowerCase();
+  const pq = state.pointSearch.trim().toLowerCase();
+  const visible = points.map((p,i)=>({p,i})).filter(({p})=>!pq || p.name.toLowerCase().includes(pq));
+
+  let html = `<div class="summary-wrap"><table class="summary"><thead><tr>
+    <th class="sticky-col">Товар</th>`;
+  for(const {p} of visible) html += `<th title="${esc(p.name)}">${esc(shortName(p.name))}</th>`;
+  html += `<th class="total-col">Итого</th></tr></thead><tbody>`;
+
+  let rows = 0;
+  const colTotals = visible.map(()=>({ord:0,got:0}));
+  let grandOrd = 0, grandGot = 0;
+
+  for(let xi=0; xi<products.length; xi++){
+    const prod = products[xi];
+    if(q && !prod.name.toLowerCase().includes(q) && !(prod.weight||'').toLowerCase().includes(q)) continue;
+
+    if(state.filterUnsorted){
+      let allDone = true, hasAny = false;
+      for(const {i:pi} of visible){
+        const ord = prod.perPoint[pi]||0;
+        if(ord===0) continue;
+        hasAny = true;
+        if(getPicked(pi,xi)<ord){ allDone = false; break; }
+      }
+      if(hasAny && allDone) continue;
+    }
+    if(state.filterInProgress){
+      let hasAny = false, hasPartial = false;
+      for(const {i:pi} of visible){
+        const ord = prod.perPoint[pi]||0;
+        if(ord===0) continue;
+        hasAny = true;
+        const got = Math.min(getPicked(pi,xi), ord);
+        if(got>0 && got<ord){ hasPartial = true; break; }
+      }
+      if(!hasAny || !hasPartial) continue;
+    }
+
+    rows++;
+    html += `<tr><td class="sticky-col">${esc(prod.name)}${prod.weight?` <span style="color:var(--soft);font-size:11.5px">${esc(prod.weight)}</span>`:''}</td>`;
+    let tOrd=0, tGot=0;
+    visible.forEach(({i:pi}, idx)=>{
+      const ord = prod.perPoint[pi]||0;
+      if(ord===0){ html += `<td class="cell empty">—</td>`; return; }
+      const got = Math.min(getPicked(pi,xi), ord);
+      tOrd += ord; tGot += got;
+      colTotals[idx].ord += ord; colTotals[idx].got += got;
+      const cls = got>=ord ? 'cell done' : got>0 ? 'cell partial' : 'cell';
+      html += `<td class="${cls}">${got}/${ord}</td>`;
+    });
+    grandOrd += tOrd; grandGot += tGot;
+    const tCls = tGot>=tOrd ? 'total-col done' : tGot>0 ? 'total-col partial' : 'total-col';
+    html += `<td class="${tCls}">${tGot}/${tOrd}</td></tr>`;
+  }
+
+  html += `</tbody>`;
+  // Итоговая строка по колонкам
+  if(rows>0){
+    html += `<tfoot><tr><td class="sticky-col">Итого</td>`;
+    colTotals.forEach(ct=>{
+      const cls = ct.got>=ct.ord ? 'done' : ct.got>0 ? 'partial' : '';
+      html += `<td class="${cls}">${ct.got}/${ct.ord}</td>`;
+    });
+    const gCls = grandGot>=grandOrd ? 'done' : grandGot>0 ? 'partial' : '';
+    html += `<td class="${gCls}">${grandGot}/${grandOrd}</td></tr></tfoot>`;
+  }
+  html += `</table></div>`;
+
+  if(rows===0){
+    let msg = 'Ничего не найдено';
+    if(pq && visible.length===0) msg = 'Точка с такой фамилией не найдена';
+    else if(state.filterUnsorted) msg = 'Все позиции собраны 🎉';
+    else if(state.filterInProgress) msg = 'Нет позиций в работе';
+    html = `<div class="empty-block">${msg}</div>`;
+  }
+  return html;
+}
+
+/* ==================================================================
+   FOCUS MODE
+   ================================================================== */
+function renderFocus(){
+  const pi = state.focusPoint;
+  const {points, products} = state.order;
+  const point = points[pi];
+  if(!point){ state.focusPoint=null; return renderApp(); }
+  const st = pointStats(pi);
+  const p = pct(st.unitsDone, st.unitsTotal);
+  const isDone = st.linesTotal>0 && st.linesDone===st.linesTotal;
+  const q = state.search.trim().toLowerCase();
+
+  // Собираем items по категориям
+  const items = [];
+  for(let xi=0; xi<products.length; xi++){
+    const ord = products[xi].perPoint[pi]||0;
+    if(ord===0) continue;
+    if(q && !products[xi].name.toLowerCase().includes(q) && !(products[xi].weight||'').toLowerCase().includes(q)) continue;
+    const got = getPicked(pi,xi);
+    if(state.filterUnsorted && got>=ord) continue;
+    items.push({xi, ord, got, name: products[xi].name, weight: products[xi].weight, category: products[xi].category||'Прочее'});
+  }
+
+  // Группировка
+  const groups = {};
+  for(const it of items){
+    const cat = it.category||'Прочее';
+    if(!groups[cat]) groups[cat] = [];
+    groups[cat].push(it);
+  }
+  const catNames = Object.keys(groups).sort((a,b)=>a.localeCompare(b,'ru'));
+
+  // Навигация по точкам
+  const orderedIndices = sortedPointIndices().map(x=>x.i);
+  const pos = orderedIndices.indexOf(pi);
+  const prevPi = pos>0 ? orderedIndices[pos-1] : null;
+  const nextPi = pos>=0 && pos<orderedIndices.length-1 ? orderedIndices[pos+1] : null;
+
+  let html = `
+  <div class="sticky-wrap">
+    <div class="focus-head">
+      <button class="back" data-act="close-focus" title="Назад">←</button>
+      <div class="title-area">
+        <h2>${esc(point.name)}${isDone?' <span class="badge">✓</span>':''}</h2>
+        <div class="focus-progress">
+          <div class="bar"><div class="bar-fill" style="width:${p}%; ${isDone?'background:linear-gradient(90deg,#22c55e,#16a34a)':''}"></div></div>
+          <span class="pct">${p}%</span>
+        </div>
+        <div class="focus-meta">${st.linesDone}/${st.linesTotal} позиций · ${st.unitsDone}/${st.unitsTotal} шт</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="focus-controls">
+    <button class="btn primary" data-act="mark-all-done" data-pi="${pi}">✓ Собрать всё</button>
+    <button class="btn ghost" data-act="print-point" data-pi="${pi}">🖨 Печать</button>
+    <button class="btn danger" data-act="reset-point" data-pi="${pi}">Сброс</button>
+  </div>
+
+  <div class="content" id="content">
+  `;
+
+  if(catNames.length===0){
+    html += `<div class="empty-block">${items.length===0 && (state.filterUnsorted||q) ? 'Всё собрано' : 'Нет позиций'}</div>`;
+  } else {
+    for(const cat of catNames){
+      const list = groups[cat];
+      const catKey = pi+'::'+cat;
+      const isOpen = !state.collapsedCats[catKey];
+      const catTotal = list.reduce((s,x)=>s+x.ord,0);
+      const catDone = list.reduce((s,x)=>s+Math.min(x.got,x.ord),0);
+      html += `<div class="cat-group ${isOpen?'open':''}">
+        <div class="cat-head" data-cat="${esc(cat)}" data-pi="${pi}">
+          <span class="ic">▶</span>
+          <span class="name">${esc(cat)}</span>
+          <span class="count">${catDone}/${catTotal}</span>
+        </div>`;
+      if(isOpen){
+        for(const it of list) html += renderItem(pi, it);
+      }
+      html += `</div>`;
+    }
+  }
+
+  html += `</div>`;
+
+  html += `<div class="focus-nav">
+    <button class="btn ghost" data-act="prev-point" ${prevPi==null?'disabled':''} ${prevPi==null?'style="opacity:.4"':''}>← Пред. точка</button>
+    <button class="btn ghost" data-act="next-point" ${nextPi==null?'disabled':''} ${nextPi==null?'style="opacity:.4"':''}>След. точка →</button>
+  </div>`;
+
+  return html;
+}
+
+function renderItem(pi, it){
+  const done = it.got>=it.ord;
   return `<div class="item ${done?'done':''}" data-pi="${pi}" data-xi="${it.xi}">
-    <div class="item-name">${esc(it.name)}</div>
+    <div class="item-name-row">
+      <span class="item-name">${esc(it.name)}</span>
+      ${it.weight?`<span class="item-weight">${esc(it.weight)}</span>`:''}
+    </div>
     <div class="item-controls">
-      <button class="ctrl" data-act="dec" ${it.got<=0?'disabled':''}>−</button>
-      <input type="number" class="cnt" value="${it.got}" min="0" max="${it.ordered}" inputmode="numeric">
-      <span class="of">/ ${it.ordered}</span>
-      <button class="ctrl" data-act="inc" ${done?'disabled':''}>+</button>
-      <button class="check ${done?'checked':''}" data-act="toggle" title="${done?'Снять отметку':'Отметить собранным'}">${done?'✓':''}</button>
+      <button class="ctrl ${it.got<=0?'muted':''}" data-act="dec" data-pi="${pi}" data-xi="${it.xi}" aria-label="Минус">−</button>
+      <button class="counter" data-act="open-numpad" data-pi="${pi}" data-xi="${it.xi}">
+        ${it.got}<span class="of">/${it.ord}</span>
+      </button>
+      <button class="ctrl ${done?'muted':''}" data-act="inc" data-pi="${pi}" data-xi="${it.xi}" aria-label="Плюс">+</button>
+      <button class="check ${done?'checked':''}" data-act="toggle" data-pi="${pi}" data-xi="${it.xi}" aria-label="Готово">${done?'✓':''}</button>
     </div>
   </div>`;
 }
 
-function renderSummary(){
-  const{points,products}=state.order;
-  const q=state.search.trim().toLowerCase();
-  let html=`<div class="summary-wrap"><table class="summary"><thead><tr>
-    <th class="sticky-col">Товар</th>`;
-  for(const p of points)html+=`<th title="${esc(p.name)}">${esc(shortName(p.name))}</th>`;
-  html+=`<th class="total-col">Итого</th></tr></thead><tbody>`;
-
-  let rows=0;
-  for(let xi=0;xi<products.length;xi++){
-    const prod=products[xi];
-    if(q&&!prod.name.toLowerCase().includes(q))continue;
-
-    /* Фильтр: пропускаем строки, где всё собрано */
-    if(state.filterUnsorted){
-      let allDone=true,hasAny=false;
-      for(let pi=0;pi<points.length;pi++){
-        const ord=prod.perPoint[pi]||0;
-        if(ord===0)continue;
-        hasAny=true;
-        if(getPicked(pi,xi)<ord){allDone=false;break;}
-      }
-      if(hasAny&&allDone)continue;
-    }
-
-    rows++;
-    html+=`<tr><td class="sticky-col">${esc(prod.name)}</td>`;
-    let tOrd=0,tGot=0;
-    for(let pi=0;pi<points.length;pi++){
-      const ord=prod.perPoint[pi]||0;
-      if(ord===0){html+=`<td class="cell empty">—</td>`;continue;}
-      const got=Math.min(getPicked(pi,xi),ord);
-      tOrd+=ord;tGot+=got;
-      const cls=got>=ord?'cell done':got>0?'cell partial':'cell';
-      html+=`<td class="${cls}">${got}/${ord}</td>`;
-    }
-    const tCls=tGot>=tOrd?'total-col done':tGot>0?'total-col partial':'total-col';
-    html+=`<td class="${tCls}">${tGot}/${tOrd}</td></tr>`;
-  }
-  html+=`</tbody></table></div>`;
-  if(rows===0)html=`<div class="empty-row" style="background:#fff;border-radius:14px;padding:32px">
-    ${state.filterUnsorted?'Все позиции собраны 🎉':'Ничего не найдено'}</div>`;
-  return html;
-}
-
-/* ========== Перерисовка только контента ========== */
+/* ==================================================================
+   ОБНОВЛЕНИЕ ЧАСТЕЙ UI
+   ================================================================== */
 function renderContent(){
-  const c=$('#content');
-  if(!c)return;
-  c.innerHTML=state.view==='points'?renderPoints():renderSummary();
+  const c = $('#content');
+  if(!c || !state.order) return;
+  if(state.focusPoint != null){
+    // focus mode перерисовывает всё
+    render();
+    return;
+  }
+  c.innerHTML = state.view==='points' ? renderPoints() : renderSummary();
+  afterRender();
 }
 function refreshChrome(){
-  /* Пересчёт верхней карточки и табов, если что-то поменялось */
-  if(!state.order)return;
-  const ov=overallStats();
-  const pc=$('.overall-pct'),bar=$('.overall-card .bar-fill'),meta=$('.overall-meta');
-  if(pc)pc.textContent=pct(ov.unitsDone,ov.unitsTotal)+'%';
-  if(bar){bar.style.width=pct(ov.unitsDone,ov.unitsTotal)+'%';
-    bar.classList.toggle('full',ov.unitsTotal>0&&ov.unitsDone===ov.unitsTotal);}
-  if(meta)meta.textContent=`${ov.linesDone}/${ov.linesTotal} позиций · ${ov.unitsDone}/${ov.unitsTotal} шт`;
+  if(!state.order) return;
+  // sticky progress
+  const strip = $('.progress-strip');
+  if(strip){
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = renderStickyProgress();
+    strip.replaceWith(wrapper.firstElementChild);
+  }
+}
+function updateItemUI(item, pi, xi){
+  const ord = state.order.products[xi].perPoint[pi]||0;
+  const got = getPicked(pi,xi);
+  const done = got>=ord;
+  const counter = item.querySelector('.counter');
+  if(counter) counter.innerHTML = `${got}<span class="of">/${ord}</span>`;
+  item.classList.toggle('done', done);
+  const chk = item.querySelector('.check');
+  if(chk){ chk.classList.toggle('checked', done); chk.textContent = done?'✓':''; }
+  const incBtn = item.querySelector('[data-act="inc"]');
+  const decBtn = item.querySelector('[data-act="dec"]');
+  if(incBtn) incBtn.classList.toggle('muted', done);
+  if(decBtn) decBtn.classList.toggle('muted', got<=0);
+}
+function afterRender(){
+  // Sticky тень
+  const wrap = $('#sticky-wrap');
+  if(wrap){
+    const onScroll = ()=>{
+      wrap.classList.toggle('scrolled', window.scrollY > 8);
+    };
+    window.removeEventListener('scroll', wrap._h||(()=>{}));
+    wrap._h = onScroll;
+    window.addEventListener('scroll', onScroll, {passive:true});
+    onScroll();
+  }
+  // Long-press на + и −
+  $$('[data-act="inc"], [data-act="dec"]').forEach(btn=>{
+    const act = btn.dataset.act;
+    const pi = +btn.dataset.pi;
+    const xi = +btn.dataset.xi;
+    attachPress(btn,
+      ()=>{ // tick
+        const ord = state.order.products[xi].perPoint[pi]||0;
+        const cur = getPicked(pi,xi);
+        if(act==='inc'){
+          if(cur>=ord) return;
+          setPicked(pi,xi,cur+1, {silent:false});
+        } else {
+          if(cur<=0) return;
+          setPicked(pi,xi,cur-1, {silent:false});
+        }
+        // локальное обновление
+        const item = btn.closest('.item');
+        if(item) updateItemUI(item, pi, xi);
+        refreshChrome();
+      },
+      ()=>{ // end hold
+        renderContent();
+      }
+    );
+  });
+  // Свайпы
+  $$('.item').forEach(item=>{
+    const pi = +item.dataset.pi;
+    const xi = +item.dataset.xi;
+    attachSwipe(item,
+      ()=>{ // вправо — +1
+        const ord = state.order.products[xi].perPoint[pi]||0;
+        const cur = getPicked(pi,xi);
+        if(cur>=ord) return;
+        setPicked(pi,xi,cur+1);
+        renderContent();
+      },
+      ()=>{ // влево — −1
+        const cur = getPicked(pi,xi);
+        if(cur<=0) return;
+        setPicked(pi,xi,cur-1);
+        renderContent();
+      }
+    );
+  });
 }
 
-/* ========== Загрузка файла ========== */
+/* Long press */
+function attachPress(el, onTick, onEnd){
+  let holdTimer=null, repeatTimer=null, holding=false;
+  const stopAll = ()=>{
+    if(holdTimer){ clearTimeout(holdTimer); holdTimer=null; }
+    if(repeatTimer){ clearInterval(repeatTimer); repeatTimer=null; }
+    if(holding){
+      el.classList.remove('holding');
+      if(onEnd) onEnd();
+    }
+    holding = false;
+  };
+  const start = (e)=>{
+    if(e.pointerType==='mouse' && e.button!==0) return;
+    holding = false;
+    onTick();
+    holdTimer = setTimeout(()=>{
+      holding = true;
+      el.classList.add('holding');
+      repeatTimer = setInterval(onTick, 110);
+    }, 450);
+  };
+  el.addEventListener('pointerdown', start);
+  el.addEventListener('pointerup', stopAll);
+  el.addEventListener('pointercancel', stopAll);
+  el.addEventListener('pointerleave', stopAll);
+}
+
+/* Swipe */
+function attachSwipe(el, onRight, onLeft){
+  let x0=0, y0=0, active=false, fired=false;
+  el.addEventListener('touchstart', (e)=>{
+    if(e.touches.length!==1) return;
+    x0 = e.touches[0].clientX; y0 = e.touches[0].clientY;
+    active = true; fired = false;
+  }, {passive:true});
+  el.addEventListener('touchmove', (e)=>{
+    if(!active || fired) return;
+    const dx = e.touches[0].clientX - x0;
+    const dy = e.touches[0].clientY - y0;
+    if(Math.abs(dx)>Math.abs(dy)*1.5 && Math.abs(dx)>70){
+      active = false; fired = true;
+      if(dx>0) onRight(); else onLeft();
+    } else if(Math.abs(dy)>12 && Math.abs(dy)>Math.abs(dx)){
+      active = false;
+    }
+  }, {passive:true});
+  el.addEventListener('touchend', ()=>{ active=false; }, {passive:true});
+}
+
+/* ==================================================================
+   МОДАЛКИ: нумпад, меню точки, настройки
+   ================================================================== */
+function openOverlay(html, onMount){
+  const div = document.createElement('div');
+  div.className = 'overlay';
+  div.innerHTML = `<div class="sheet">${html}</div>`;
+  div.addEventListener('click', (e)=>{
+    if(e.target===div) close();
+  });
+  document.body.appendChild(div);
+  document.body.style.overflow = 'hidden';
+  function close(){
+    div.remove();
+    document.body.style.overflow = '';
+    document.removeEventListener('keydown', onEsc);
+  }
+  function onEsc(e){ if(e.key==='Escape') close(); }
+  document.addEventListener('keydown', onEsc);
+  if(onMount) onMount(div, close);
+  return {close};
+}
+
+function openNumpad(pi, xi){
+  const {products} = state.order;
+  const prod = products[xi];
+  const ord = prod.perPoint[pi]||0;
+  let value = String(getPicked(pi,xi));
+  const presets = [1,2,3,5,10].filter(v=>v<=ord);
+
+  const mount = (div, close)=>{
+    const valEl = div.querySelector('.numpad-value');
+    const renderVal = ()=>{
+      valEl.innerHTML = `${value||0}<span class="of">/${ord}</span>`;
+    };
+    renderVal();
+    div.querySelectorAll('[data-num]').forEach(b=>{
+      b.addEventListener('click', ()=>{
+        const d = b.dataset.num;
+        if(value.length>=4) return;
+        value = (value==='0' ? '' : value) + d;
+        renderVal();
+      });
+    });
+    div.querySelector('[data-num-clear]').addEventListener('click', ()=>{
+      value=''; renderVal();
+    });
+    div.querySelector('[data-num-back]').addEventListener('click', ()=>{
+      value = value.slice(0,-1); renderVal();
+    });
+    div.querySelector('[data-num-cancel]').addEventListener('click', close);
+    div.querySelector('[data-num-ok]').addEventListener('click', ()=>{
+      const v = parseInt(value,10) || 0;
+      const r = setPicked(pi, xi, v);
+      close();
+      renderContent();
+      refreshChrome();
+      if(r.pointJustDone) pulsePointCard(pi);
+    });
+    div.querySelectorAll('[data-preset]').forEach(b=>{
+      b.addEventListener('click', ()=>{
+        value = String(b.dataset.preset); renderVal();
+      });
+    });
+  };
+
+  openOverlay(`
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">${esc(prod.name)}${prod.weight?` · ${esc(prod.weight)}`:''}</div>
+    <div class="sheet-sub">Заказано: ${ord} шт</div>
+    <div class="numpad-value">0</div>
+    <div class="numpad-grid">
+      ${[1,2,3,4,5,6,7,8,9].map(d=>`<button class="numpad-btn" data-num="${d}">${d}</button>`).join('')}
+      <button class="numpad-btn cancel" data-num-clear>C</button>
+      <button class="numpad-btn" data-num="0">0</button>
+      <button class="numpad-btn cancel" data-num-back>⌫</button>
+      <button class="numpad-btn cancel" data-num-cancel>Отмена</button>
+      <button class="numpad-btn confirm" data-num-ok style="grid-column: span 2">Готово</button>
+    </div>
+    ${presets.length?`
+      <div class="numpad-presets">
+        ${presets.map(v=>`<button class="preset" data-preset="${v}">${v}</button>`).join('')}
+      </div>`:''}
+  `, mount);
+}
+
+function openPointMenu(pi){
+  const point = state.order.points[pi];
+  const st = pointStats(pi);
+  const mount = (div, close)=>{
+    div.querySelector('[data-menu-open]').addEventListener('click', ()=>{
+      close(); state.focusPoint = pi; state.search=''; render();
+    });
+    div.querySelector('[data-menu-done]').addEventListener('click', ()=>{
+      const before = markPointDone(pi);
+      close();
+      renderContent(); refreshChrome();
+      pulsePointCard(pi);
+      showToast('Точка отмечена собранной', {
+        actionLabel:'Отменить',
+        onAction:()=>{ state.picked = {...state.picked}; for(const k in before) state.picked[k]=before[k];
+          for(const k in state.picked){ const [pp]=k.split(':'); }
+          // откат: восстановим состояние из before
+          state.picked = before;
+          recalcPointsDone();
+          saveState();
+          renderContent(); refreshChrome();
+        }
+      });
+    });
+    div.querySelector('[data-menu-print]').addEventListener('click', ()=>{
+      close(); printPoint(pi);
+    });
+    div.querySelector('[data-menu-reset]').addEventListener('click', ()=>{
+      const before = resetPoint(pi);
+      close();
+      renderContent(); refreshChrome();
+      showToast('Точка сброшена', {
+        actionLabel:'Отменить',
+        onAction:()=>{
+          Object.assign(state.picked, before);
+          recalcPointsDone(); saveState(); renderContent(); refreshChrome();
+        }
+      });
+    });
+  };
+  openOverlay(`
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">${esc(point.name)}</div>
+    <div class="sheet-sub">${st.linesDone}/${st.linesTotal} позиций · ${st.unitsDone}/${st.unitsTotal} шт</div>
+    <button class="sheet-item" data-menu-open>
+      <span class="ic">→</span> Открыть точку
+    </button>
+    <button class="sheet-item" data-menu-done>
+      <span class="ic">✓</span> Собрать всё
+      <span class="sub">отметить ${st.linesTotal} позиций</span>
+    </button>
+    <button class="sheet-item" data-menu-print>
+      <span class="ic">🖨</span> Распечатать накладную
+    </button>
+    <div class="sheet-divider"></div>
+    <button class="sheet-item danger" data-menu-reset>
+      <span class="ic">↺</span> Сбросить точку
+    </button>
+  `, mount);
+}
+
+function openSettings(){
+  const mount = (div, close)=>{
+    div.querySelectorAll('[data-switch]').forEach(sw=>{
+      sw.addEventListener('click', ()=>{
+        const key = sw.dataset.switch;
+        state[key] = !state[key];
+        sw.classList.toggle('on', state[key]);
+        saveState();
+      });
+    });
+    div.querySelectorAll('[data-theme-pill]').forEach(p=>{
+      p.addEventListener('click', ()=>{
+        state.theme = p.dataset.themePill;
+        div.querySelectorAll('[data-theme-pill]').forEach(x=>x.classList.toggle('active', x===p));
+        applyTheme(); saveState();
+      });
+    });
+    div.querySelector('[data-settings-reset]').addEventListener('click', ()=>{
+      const before = resetAll();
+      close();
+      render();
+      showToast('Прогресс сброшен', {
+        actionLabel:'Отменить',
+        onAction:()=>{
+          state.picked = {...before};
+          recalcPointsDone(); saveState(); render();
+        }
+      });
+    });
+  };
+
+  openOverlay(`
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">Настройки</div>
+
+    <div class="set-row">
+      <div>
+        <div class="lbl">Вибрация</div>
+        <div class="desc">Отклик на действия</div>
+      </div>
+      <button class="switch ${state.haptic?'on':''}" data-switch="haptic"></button>
+    </div>
+
+    <div class="set-row">
+      <div>
+        <div class="lbl">Звук</div>
+        <div class="desc">Сигнал при завершении позиции</div>
+      </div>
+      <button class="switch ${state.sound?'on':''}" data-switch="sound"></button>
+    </div>
+
+    <div class="set-row" style="padding-bottom:6px">
+      <div>
+        <div class="lbl">Тема</div>
+        <div class="desc">Оформление интерфейса</div>
+      </div>
+    </div>
+    <div class="theme-pills">
+      <button class="theme-pill ${state.theme==='auto'?'active':''}" data-theme-pill="auto">Авто</button>
+      <button class="theme-pill ${state.theme==='light'?'active':''}" data-theme-pill="light">Светлая</button>
+      <button class="theme-pill ${state.theme==='dark'?'active':''}" data-theme-pill="dark">Тёмная</button>
+    </div>
+
+    <div class="sheet-divider"></div>
+    <button class="sheet-item danger" data-settings-reset>
+      <span class="ic">↺</span> Сбросить весь прогресс
+    </button>
+  `, mount);
+}
+
+/* Пульсация карточки после завершения */
+function pulsePointCard(pi){
+  const card = document.querySelector(`.point-card[data-point="${pi}"]`);
+  if(!card) return;
+  card.classList.add('just-done');
+  setTimeout(()=>card.classList.remove('just-done'), 750);
+}
+
+/* ==================================================================
+   ПЕЧАТЬ
+   ================================================================== */
+function printPoint(pi){
+  const point = state.order.points[pi];
+  const {products} = state.order;
+  const items = [];
+  for(let xi=0; xi<products.length; xi++){
+    const ord = products[xi].perPoint[pi]||0;
+    if(ord===0) continue;
+    items.push({name:products[xi].name, weight:products[xi].weight, ord, got:getPicked(pi,xi)});
+  }
+  const total = items.reduce((s,i)=>s+i.ord,0);
+  const dateStr = state.order.orderDate
+    ? state.order.orderDate.toLocaleDateString('ru-RU')
+    : new Date().toLocaleDateString('ru-RU');
+  const w = window.open('', '_blank');
+  if(!w){ showToast('Разрешите всплывающие окна для печати'); return; }
+  w.document.write(`<!DOCTYPE html><html lang="ru"><head><meta charset="utf-8">
+  <title>Накладная · ${esc(point.name)}</title>
+  <style>
+    body{font-family:-apple-system,Arial,sans-serif;padding:24px;max-width:640px;margin:0 auto;color:#000}
+    h1{font-size:18px;margin:0 0 6px}
+    .meta{color:#666;font-size:13px;margin-bottom:20px}
+    table{width:100%;border-collapse:collapse;font-size:13px}
+    th,td{padding:9px 6px;border-bottom:1px solid #ddd;text-align:left;vertical-align:top}
+    th{background:#f5f5f5;font-size:11px;text-transform:uppercase;color:#666;letter-spacing:.03em}
+    td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+    .chk{width:26px}
+    .box{display:inline-block;width:14px;height:14px;border:1.5px solid #333;border-radius:3px}
+    .total{margin-top:20px;font-size:14px;font-weight:700}
+    .sign{margin-top:50px;border-top:1px solid #333;width:220px;font-size:12px;color:#666;padding-top:6px}
+    @media print{body{padding:8px}.sign{margin-top:30px}}
+  </style></head><body>
+    <h1>${esc(point.name)}</h1>
+    <div class="meta">Дата: ${esc(dateStr)} · Позиций: ${items.length} · Всего: ${total} шт</div>
+    <table>
+      <thead><tr><th class="chk"></th><th>Товар</th><th style="text-align:right">Кол-во</th></tr></thead>
+      <tbody>
+        ${items.map(it=>`<tr>
+          <td class="chk"><span class="box"></span></td>
+          <td>${esc(it.name)}${it.weight?` <span style="color:#888">· ${esc(it.weight)}</span>`:''}</td>
+          <td class="num">${it.ord}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+    <div class="total">Итого: ${total} шт</div>
+    <div class="sign">Подпись сборщика</div>
+  </body></html>`);
+  w.document.close();
+  w.focus();
+  setTimeout(()=>{ try{ w.print(); }catch(e){} }, 350);
+}
+
+/* ==================================================================
+   ЗАГРУЗКА ФАЙЛА
+   ================================================================== */
 function bindUpload(){
-  const dz=$('#dropzone'),fi=$('#file-input'),btn=$('#pick-file');
-  if(!dz)return;
-
-  btn.addEventListener('click',()=>{fi.value='';fi.click();});
-  fi.addEventListener('change',e=>{if(e.target.files[0])handleFile(e.target.files[0]);});
-
+  const dz = $('#dropzone'), fi = $('#file-input'), btn = $('#pick-file');
+  if(!dz) return;
+  btn.addEventListener('click', ()=>{ fi.value=''; fi.click(); });
+  fi.addEventListener('change', e=>{ if(e.target.files[0]) handleFile(e.target.files[0]); });
   ['dragenter','dragover'].forEach(ev=>dz.addEventListener(ev,e=>{
-    e.preventDefault();dz.classList.add('over');}));
+    e.preventDefault(); dz.classList.add('over');
+  }));
   ['dragleave','drop'].forEach(ev=>dz.addEventListener(ev,e=>{
-    e.preventDefault();dz.classList.remove('over');}));
-  dz.addEventListener('drop',e=>{
-    const f=e.dataTransfer.files[0];
-    if(f)handleFile(f);
+    e.preventDefault(); dz.classList.remove('over');
+  }));
+  dz.addEventListener('drop', e=>{
+    const f = e.dataTransfer.files[0];
+    if(f) handleFile(f);
   });
 }
 
 async function handleFile(file){
-  state.error=null;
+  state.error = null;
   try{
-    const buf=await file.arrayBuffer();
-    const order=parseOrder(buf,file.name);
-    /* Если в сохранёнке был тот же заказ — не спрашиваем */
-    const hadProgress=Object.keys(state.picked).length>0;
+    const buf = await file.arrayBuffer();
+    const order = parseOrder(buf, file.name);
+    const hadProgress = Object.keys(state.picked).length>0;
     if(hadProgress){
-      const sameOrder=state.order
-        &&state.order.products.length===order.products.length
-        &&state.order.points.length===order.points.length;
-      if(!sameOrder&&!confirm('У вас есть сохранённый прогресс по другому заказу. Начать заново?')){
+      const sameOrder = state.order
+        && state.order.products.length===order.products.length
+        && state.order.points.length===order.points.length;
+      if(!sameOrder && !confirm('У вас есть сохранённый прогресс по другому заказу. Начать заново?')){
         return;
       }
-      if(!sameOrder)state.picked={};
+      if(!sameOrder){ state.picked = {}; state.pointsDone = {}; }
     }
-    state.order=order;
-    state.collapsed={};
-    state.search='';
+    state.order = order;
+    state.collapsed = {};
+    state.collapsedCats = {};
+    state.search = '';
+    state.pointSearch = '';
+    state.currentPoint = null;
+    state.focusPoint = null;
+    recalcPointsDone();
     saveState();
     render();
   }catch(err){
-    state.error='Не удалось разобрать файл: '+(err.message||err);
+    state.error = 'Не удалось разобрать файл: ' + (err.message||err);
     render();
   }
 }
 
-/* ========== События ========== */
-document.addEventListener('click',e=>{
-  const t=e.target;
+/* ==================================================================
+   СОБЫТИЯ
+   ================================================================== */
+document.addEventListener('click', e=>{
+  const t = e.target;
 
-  /* Таб */
-  const tab=t.closest('.tab');
+  // Переключение табов
+  const tab = t.closest('.tab');
   if(tab){
-    state.view=tab.dataset.view;
-    $$('.tab').forEach(x=>x.classList.toggle('active',x.dataset.view===state.view));
+    state.view = tab.dataset.view;
+    $$('.tab').forEach(x=>x.classList.toggle('active', x.dataset.view===state.view));
     renderContent();
     return;
   }
 
-  /* Свернуть/развернуть точку */
-  const ph=t.closest('[data-toggle]');
-  if(ph){
-    const pi=+ph.dataset.toggle;
-    const name=state.order.points[pi].name;
-    state.collapsed[name]=!state.collapsed[name];
-    renderContent();
+  // Верхние кнопки
+  if(t.closest('[data-act="settings"]')){ openSettings(); return; }
+  if(t.closest('[data-act="change-file"]')){
+    if(Object.keys(state.picked).length>0 && !confirm('Открыть другой файл? Текущий прогресс будет заменён.')) return;
+    state.order = null; state.picked = {}; state.pointsDone = {};
+    state.currentPoint = null; state.focusPoint = null; state.error = null;
+    saveState(); render();
+    return;
+  }
+  if(t.closest('[data-act="reset-all"]')){
+    const before = resetAll();
+    render();
+    showToast('Прогресс сброшен', {
+      actionLabel:'Отменить',
+      onAction:()=>{ state.picked = {...before}; recalcPointsDone(); saveState(); render(); }
+    });
     return;
   }
 
-  /* Кнопки +/−/чек */
-  const btn=t.closest('[data-act]');
-  if(btn){
-    const item=btn.closest('.item');
-    if(!item)return;
-    const pi=+item.dataset.pi,xi=+item.dataset.xi;
-    const cur=getPicked(pi,xi);
-    const act=btn.dataset.act;
-    if(act==='inc')setPicked(pi,xi,cur+1);
-    else if(act==='dec')setPicked(pi,xi,cur-1);
-    else if(act==='toggle')toggleDone(pi,xi);
-    renderContent();refreshChrome();
+  // Текущая точка
+  if(t.closest('[data-act="go-current"]')){
+    if(state.currentPoint!=null){ state.focusPoint = state.currentPoint; render(); }
     return;
   }
 
-  /* Сменить файл */
-  if(t.closest('#change-file')){
-    if(Object.keys(state.picked).length>0&&!confirm('Открыть другой файл? Текущий прогресс будет заменён.'))return;
-    state.order=null;state.picked={};state.error=null;
-    saveState();
+  // Открыть точку (focus)
+  const openEl = t.closest('[data-open]');
+  if(openEl){
+    state.focusPoint = +openEl.dataset.open;
+    state.search = '';
     render();
     return;
   }
 
-  /* Сбросить весь прогресс */
-  if(t.closest('#reset-all')){
-    if(confirm('Сбросить весь прогресс по этому заказу?')){
-      state.picked={};saveState();render();
-    }
+  // Меню точки
+  const menuEl = t.closest('[data-menu]');
+  if(menuEl){
+    e.stopPropagation();
+    openPointMenu(+menuEl.dataset.menu);
     return;
   }
-});
 
-/* Живой ввод в счётчик */
-document.addEventListener('input',e=>{
-  const t=e.target;
+  // Focus-режим кнопки
+  if(t.closest('[data-act="close-focus"]')){ state.focusPoint = null; render(); return; }
+  if(t.closest('[data-act="mark-all-done"]')){
+    const pi = +t.closest('[data-act="mark-all-done"]').dataset.pi;
+    const before = markPointDone(pi);
+    renderContent(); refreshChrome();
+    if(state.focusPoint===null) pulsePointCard(pi);
+    showToast('Все позиции отмечены собранными', {
+      actionLabel:'Отменить',
+      onAction:()=>{ state.picked = {...before}; recalcPointsDone(); saveState(); render(); }
+    });
+    return;
+  }
+  if(t.closest('[data-act="print-point"]')){
+    printPoint(+t.closest('[data-act="print-point"]').dataset.pi);
+    return;
+  }
+  if(t.closest('[data-act="reset-point"]')){
+    const pi = +t.closest('[data-act="reset-point"]').dataset.pi;
+    const before = resetPoint(pi);
+    renderContent(); refreshChrome();
+    showToast('Точка сброшена', {
+      actionLabel:'Отменить',
+      onAction:()=>{ Object.assign(state.picked, before); recalcPointsDone(); saveState(); render(); }
+    });
+    return;
+  }
+  if(t.closest('[data-act="prev-point"]')){
+    const list = sortedPointIndices().map(x=>x.i);
+    const pos = list.indexOf(state.focusPoint);
+    if(pos>0){ state.focusPoint = list[pos-1]; state.search=''; render(); }
+    return;
+  }
+  if(t.closest('[data-act="next-point"]')){
+    const list = sortedPointIndices().map(x=>x.i);
+    const pos = list.indexOf(state.focusPoint);
+    if(pos>=0 && pos<list.length-1){ state.focusPoint = list[pos+1]; state.search=''; render(); }
+    return;
+  }
 
-  /* Поиск — перерисовываем только контент, фокус сохранится */
-  if(t.id==='search'){
-    state.search=t.value;
+  // Группа категорий — свернуть/развернуть
+  const catHead = t.closest('[data-cat]');
+  if(catHead){
+    const pi = catHead.dataset.pi, cat = catHead.dataset.cat;
+    const key = pi+'::'+cat;
+    state.collapsedCats[key] = !state.collapsedCats[key];
     renderContent();
     return;
   }
 
-  /* Счётчик */
-  if(t.classList.contains('cnt')){
-    const item=t.closest('.item');
-    const pi=+item.dataset.pi,xi=+item.dataset.xi;
-    let v=parseInt(t.value,10);if(isNaN(v))v=0;
-    setPicked(pi,xi,v);
-    /* Лёгкое обновление внешнего вида строки без полной перерисовки */
-    const ord=state.order.products[xi].perPoint[pi]||0;
-    const got=getPicked(pi,xi);
-    const done=got>=ord;
-    item.classList.toggle('done',done);
-    const chk=item.querySelector('.check');
-    if(chk){chk.classList.toggle('checked',done);chk.textContent=done?'✓':'';}
-    refreshChrome();
+  // Открыть нумпад
+  const cnt = t.closest('[data-act="open-numpad"]');
+  if(cnt){ openNumpad(+cnt.dataset.pi, +cnt.dataset.xi); return; }
+
+  // Кнопки +/− (без long-press уже обработаны attachPress, но pointerdown уже сработал)
+  // обработка выполняется в afterRender через attachPress — здесь только игнорируем click
+  // (pointer events не дают клик)
+  const ctrl = t.closest('[data-act="inc"], [data-act="dec"]');
+  if(ctrl){ /* обработано pointerdown */ return; }
+
+  // Чек
+  const chk = t.closest('[data-act="toggle"]');
+  if(chk){
+    const pi = +chk.dataset.pi, xi = +chk.dataset.xi;
+    const r = toggleDone(pi, xi);
+    renderContent(); refreshChrome();
+    if(r && r.pointJustDone) pulsePointCard(pi);
+    return;
+  }
+
+  // Свернуть/развернуть (клик по шапке карточки без кнопок)
+  const head = t.closest('.point-head');
+  if(head && !t.closest('[data-menu]')){
+    // Открываем focus (теперь клик по шапке = открыть точку)
+    // На самом деле openEl уже обработал, но здесь fallback
+    return;
   }
 });
 
-/* Смена чекбокса фильтра */
-document.addEventListener('change',e=>{
-  if(e.target.id==='filter-unsorted'){
-    state.filterUnsorted=e.target.checked;
-    renderContent();
-  }
-  /* После блюра счётчика — полная перерисовка (обновить прогресс-бары) */
-  if(e.target.classList&&e.target.classList.contains('cnt')){
-    renderContent();refreshChrome();
+/* Ввод в поиски и селект */
+document.addEventListener('input', e=>{
+  const t = e.target;
+  if(t.id==='search'){ state.search = t.value; renderContent(); return; }
+  if(t.id==='point-search'){
+    state.pointSearch = t.value;
+    renderContent(); refreshChrome();
+    return;
   }
 });
+document.addEventListener('change', e=>{
+  const t = e.target;
+  if(t.id==='f-unsorted'){ state.filterUnsorted = t.checked; saveState(); renderContent(); return; }
+  if(t.id==='f-inprogress'){ state.filterInProgress = t.checked; saveState(); renderContent(); return; }
+  if(t.id==='sort-select'){ state.sortMode = t.value; saveState(); renderContent(); return; }
+});
 
-/* ========== Старт ========== */
-if(loadState())render();
-else render();
+/* ==================================================================
+   СТАРТ
+   ================================================================== */
+function init(){
+  applyTheme();
+  if(!loadState()) saveState(); // чтобы сохранились префы по умолчанию
+  if(state.order) recalcPointsDone();
+  render();
+}
 
+init();
 })();
 </script>
 </body>
